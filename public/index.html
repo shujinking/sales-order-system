@@ -148,7 +148,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
     </div>
   </aside>
   <div class="main">
-    <div class="header"><h1 id="pageTitle"></h1><div class="header-actions" id="headerActions"></div></div>
+    <div class="header" style="justify-content:flex-start;gap:12px"><span style="cursor:pointer;font-weight:600;font-size:14px;color:var(--accent)" onclick="switchPage(me.role==='admin'?'dashboard':me.role==='sales'?'orders':'finance-follow')">首页</span><h1 id="pageTitle" style="border-left:1px solid var(--border);padding-left:12px"></h1><div class="header-actions" id="headerActions" style="margin-left:auto"></div></div>
     <div class="content">
 
       <!-- Dashboard -->
@@ -274,7 +274,7 @@ function buildNav(){
   else if(r==='sales')items.push({p:'orders',l:'我的订单'},{p:'sales-follow',l:'跟进客户'});
   else if(r==='finance')items.push({p:'finance-follow',l:'确认成交'});
   document.getElementById('sidebarNav').innerHTML=items.map(i=>`<div class="nav-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('');
-  document.getElementById('mobNav').innerHTML=items.map(i=>`<div class="mob-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('');
+  document.getElementById('mobNav').innerHTML=items.map(i=>`<div class="mob-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('')+'<div class="mob-item" onclick="doLogout()" style="color:var(--red)">退出</div>';
 }
 
 function switchPage(page){

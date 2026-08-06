@@ -10,4 +10,6 @@ module.exports = {
   port: 3000,
   // 会话密钥
   sessionSecret: 'sales-order-system-secret-key-2026',
+  // 历史数据导入时，模板「初始密码」列留空所使用的默认密码（A14：全局单一事实来源，禁止在其他文件硬编码）
+  DEFAULT_IMPORT_PASSWORD: '123456',
 };

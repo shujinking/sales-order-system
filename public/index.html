@@ -122,6 +122,121 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   table{font-size:11px}th,td{padding:7px 8px}
 }
 @media (min-width:769px){.mob-nav{display:none!important}}
+/* ============================================================
+   T5 城市地图大屏（科技风）
+   ⚠️ 硬约束：本区块所有选择器（含 @media 内部）必须以 #page-citymap 开头。
+      禁止改 :root / 全局变量，禁止覆写 .card/.section/.tab/.btn 等通用类，
+      以免污染看板、订单、财务等其他页面。新增样式一律用 cm- 前缀私有类。
+   ============================================================ */
+#page-citymap{--cm-cyan:#00e5ff;--cm-cyan-dim:rgba(0,229,255,.35);--cm-mag:#ff3df0;--cm-lime:#7cffb2;--cm-amber:#ffc247;--cm-panel:rgba(9,18,38,.82);--cm-line:rgba(0,229,255,.22);--cm-txt:#cfe9ff;--cm-txt2:#8fb4d8;--cm-shadow:0 2px 12px rgba(0,0,0,.9),0 0 18px rgba(0,229,255,.45)}
+#page-citymap .cm-screen{position:relative;border:1px solid var(--cm-line);border-radius:12px;overflow:hidden;background:#04070f;background-image:radial-gradient(1200px 600px at 50% 0%,rgba(0,229,255,.10),transparent 60%),radial-gradient(900px 500px at 100% 100%,rgba(255,61,240,.08),transparent 60%),linear-gradient(180deg,#04070f 0%,#060c1c 100%);box-shadow:0 0 0 1px rgba(0,229,255,.06) inset,0 10px 40px rgba(0,0,0,.5)}
+#page-citymap .cm-screen::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(0,229,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.035) 1px,transparent 1px);background-size:44px 44px;z-index:0}
+#page-citymap .cm-screen.cm-full{position:fixed;inset:0;z-index:300;border-radius:0;border:none}
+/* R3｜主标题置于地图框最上部，字体 17px -> 51px（x3），顶部条底色/下边框全部去掉 */
+#page-citymap .cm-hero{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:8;pointer-events:none;text-align:center}
+#page-citymap .cm-title{font-size:51px;font-weight:700;letter-spacing:6px;line-height:1.12;color:#eaf7ff;white-space:nowrap;text-shadow:0 2px 14px rgba(0,0,0,.88),0 0 26px rgba(0,229,255,.75),0 0 64px rgba(0,229,255,.32)}
+#page-citymap .cm-title i{font-style:normal;color:var(--cm-cyan)}
+/* R4｜日历时钟浮在主标题右下角，每秒走动 */
+#page-citymap .cm-clock{position:absolute;right:0;top:100%;margin-top:6px;font-size:22px;font-weight:600;letter-spacing:2px;white-space:nowrap;font-family:"DIN Alternate","Segoe UI",monospace;color:var(--cm-cyan);text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 18px rgba(0,229,255,.6)}
+#page-citymap .cm-clock .cm-sec{color:var(--cm-lime);text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 18px rgba(124,255,178,.6)}
+/* R3｜tabs 与全屏按钮移到右上角，不遮挡标题 */
+#page-citymap .cm-hd{position:absolute;top:16px;right:18px;z-index:9;display:flex;align-items:center;gap:10px;padding:0;background:none;border-bottom:none;pointer-events:none}
+#page-citymap .cm-tabs{display:flex;gap:6px;pointer-events:auto}
+#page-citymap .cm-tab{padding:6px 17px;border-radius:16px;font-size:14px;cursor:pointer;background:rgba(0,229,255,.06);border:1px solid var(--cm-line);color:var(--cm-txt2);transition:all .18s;line-height:1.5}
+#page-citymap .cm-tab:hover{color:var(--cm-cyan);border-color:var(--cm-cyan-dim)}
+#page-citymap .cm-tab.active{background:rgba(0,229,255,.18);border-color:var(--cm-cyan);color:#eaf7ff;box-shadow:0 0 14px rgba(0,229,255,.35)}
+#page-citymap .cm-ops{display:flex;align-items:center;gap:10px;pointer-events:auto}
+#page-citymap .cm-btn{padding:6px 16px;border-radius:16px;font-size:14px;cursor:pointer;background:transparent;border:1px solid var(--cm-cyan-dim);color:var(--cm-cyan);transition:all .18s;line-height:1.5}
+#page-citymap .cm-btn:hover{background:rgba(0,229,255,.16);box-shadow:0 0 14px rgba(0,229,255,.35)}
+/* R1｜三栏 grid -> 单容器相对定位，地图铺满，四个面板绝对定位浮在地图上 */
+#page-citymap .cm-body{position:relative;z-index:1;height:620px;padding:0;overflow:hidden}
+#page-citymap .cm-map{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+#page-citymap .cm-screen.cm-full .cm-body{height:100vh}
+#page-citymap .cm-corner{position:absolute;z-index:5;pointer-events:none;width:min(360px,28vw);text-shadow:var(--cm-shadow)}
+#page-citymap .cm-tl{top:120px;left:18px}
+#page-citymap .cm-tr{top:120px;right:18px;text-align:right}
+#page-citymap .cm-bl{bottom:18px;left:18px}
+#page-citymap .cm-br{bottom:18px;right:18px;text-align:right}
+#page-citymap .cm-hidden{display:none}
+/* R1｜彻底去框：无底板、无描边、无内阴影、无毛玻璃、无左上角小横线 */
+#page-citymap .cm-card{position:relative;display:block;background:transparent;border:none;border-radius:0;padding:0;backdrop-filter:none;box-shadow:none}
+#page-citymap .cm-card::after{content:none}
+/* R2｜四角字体全部 x2 */
+#page-citymap .cm-card h4{font-size:24px;font-weight:600;letter-spacing:3px;color:var(--cm-cyan);margin-bottom:14px;text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 20px rgba(0,229,255,.6)}
+#page-citymap .cm-tr .cm-card h4,#page-citymap .cm-br .cm-card h4{text-align:right}
+#page-citymap .cm-card-bd{overflow:visible}
+#page-citymap .cm-kpis{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+#page-citymap .cm-kpi{text-align:left;padding:0;border:none;border-radius:0;background:none}
+#page-citymap .cm-kpi .n{font-size:60px;font-weight:700;line-height:1.05;font-family:"DIN Alternate","Segoe UI",monospace;color:var(--cm-cyan);text-shadow:0 2px 14px rgba(0,0,0,.9),0 0 26px rgba(0,229,255,.72)}
+#page-citymap .cm-kpi.k2 .n{color:var(--cm-lime);text-shadow:0 2px 14px rgba(0,0,0,.9),0 0 26px rgba(124,255,178,.72)}
+#page-citymap .cm-kpi .t{font-size:22px;color:var(--cm-txt2);margin-top:4px;letter-spacing:2px}
+#page-citymap .cm-sum{margin-top:0;padding-top:0;border-top:none;display:flex;flex-direction:column;align-items:flex-end;gap:10px;font-size:22px;letter-spacing:2px;color:var(--cm-txt2)}
+#page-citymap .cm-sum b{color:var(--cm-cyan);font-weight:700;font-size:34px;font-family:"DIN Alternate","Segoe UI",monospace;margin-left:8px;text-shadow:0 2px 14px rgba(0,0,0,.9),0 0 22px rgba(0,229,255,.7)}
+#page-citymap .cm-tr .cm-sum b{font-size:28px}
+#page-citymap .cm-rank{list-style:none;margin:0;padding:0}
+#page-citymap .cm-rank li{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:none;font-size:24px;color:var(--cm-txt)}
+#page-citymap .cm-rank .idx{width:36px;height:36px;flex-shrink:0;border-radius:7px;font-size:20px;display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.14);color:var(--cm-cyan);font-weight:700;text-shadow:0 0 12px rgba(0,229,255,.6)}
+#page-citymap .cm-rank li:nth-child(1) .idx{background:rgba(255,194,71,.22);color:var(--cm-amber)}
+#page-citymap .cm-rank li:nth-child(2) .idx{background:rgba(255,61,240,.18);color:var(--cm-mag)}
+#page-citymap .cm-rank .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+#page-citymap .cm-rank .vl{flex-shrink:0;font-weight:700;font-family:"DIN Alternate","Segoe UI",monospace;font-size:26px;color:var(--cm-cyan)}
+#page-citymap .cm-rank .vl.g{color:var(--cm-lime)}
+#page-citymap .cm-bar{display:block;height:5px;border-radius:3px;background:linear-gradient(90deg,var(--cm-cyan),var(--cm-mag));margin-top:5px;box-shadow:0 0 10px rgba(0,229,255,.55)}
+#page-citymap .cm-rank li .col{flex:1;min-width:0}
+#page-citymap .cm-empty{padding:18px 0;text-align:center;font-size:24px;color:var(--cm-txt2)}
+@media (max-width:1500px){
+  #page-citymap .cm-title{font-size:40px;letter-spacing:4px}
+  #page-citymap .cm-clock{font-size:17px;margin-top:4px;letter-spacing:1px}
+  #page-citymap .cm-tl,#page-citymap .cm-tr{top:108px}
+  #page-citymap .cm-corner{width:min(320px,28vw)}
+}
+@media (max-width:1400px){
+  #page-citymap .cm-tl,#page-citymap .cm-tr{top:104px}
+  #page-citymap .cm-corner{width:min(300px,30vw)}
+}
+@media (max-width:1100px){
+  #page-citymap .cm-body{height:520px}
+  #page-citymap .cm-title{font-size:30px;letter-spacing:3px}
+  #page-citymap .cm-clock{font-size:15px;margin-top:4px}
+  #page-citymap .cm-tl,#page-citymap .cm-tr{top:96px}
+  #page-citymap .cm-corner{width:min(252px,34vw)}
+  #page-citymap .cm-card h4{font-size:16px;margin-bottom:8px;letter-spacing:1px}
+  #page-citymap .cm-kpis{gap:14px}
+  #page-citymap .cm-kpi .n{font-size:34px}
+  #page-citymap .cm-kpi .t{font-size:13px}
+  #page-citymap .cm-sum{font-size:14px;gap:6px}
+  #page-citymap .cm-sum b{font-size:22px}
+  #page-citymap .cm-rank li{font-size:15px;gap:8px;padding:5px 0}
+  #page-citymap .cm-rank .idx{width:22px;height:22px;font-size:12px;border-radius:5px}
+  #page-citymap .cm-rank .vl{font-size:16px}
+  #page-citymap .cm-empty{font-size:14px}
+  #page-citymap .cm-screen.cm-full .cm-body{height:100vh}
+  #page-citymap .cm-screen.cm-full{overflow:hidden}
+}
+@media (max-width:768px){
+  #page-citymap .cm-hd{top:auto;bottom:12px;right:12px;flex-wrap:wrap;justify-content:flex-end}
+  #page-citymap .cm-tab{padding:4px 11px;font-size:12px}
+  #page-citymap .cm-btn{padding:4px 11px;font-size:12px}
+  #page-citymap .cm-title{font-size:26px;letter-spacing:1px}
+  #page-citymap .cm-clock{font-size:13px;letter-spacing:1px}
+  #page-citymap .cm-body{height:430px}
+  #page-citymap .cm-tl,#page-citymap .cm-tr{top:84px}
+  #page-citymap .cm-tl,#page-citymap .cm-bl{left:10px}
+  #page-citymap .cm-tr,#page-citymap .cm-br{right:10px}
+  #page-citymap .cm-bl,#page-citymap .cm-br{bottom:56px}
+  #page-citymap .cm-corner{width:44%}
+  #page-citymap .cm-kpis{grid-template-columns:1fr;gap:6px}
+  #page-citymap .cm-kpi .n{font-size:26px}
+  #page-citymap .cm-kpi .t{font-size:11px;letter-spacing:0}
+  #page-citymap .cm-card h4{font-size:13px;margin-bottom:6px;letter-spacing:0}
+  #page-citymap .cm-sum{font-size:12px}
+  #page-citymap .cm-sum b{font-size:17px;margin-left:4px}
+  #page-citymap .cm-rank li{font-size:12px;gap:6px;padding:3px 0}
+  #page-citymap .cm-rank .idx{width:18px;height:18px;font-size:10px;border-radius:4px}
+  #page-citymap .cm-rank .vl{font-size:13px}
+  #page-citymap .cm-bar{height:3px}
+  #page-citymap .cm-empty{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -164,18 +279,50 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
         <div class="stat-grid" id="amtStatGrid" style="grid-template-columns:repeat(3,1fr)"></div>
         <div class="section">
           <div class="section-hd"><h3>销售排行（本月）</h3></div>
-          <div class="section-bd"><table><thead><tr><th>排名</th><th>销售</th><th>订单</th><th>到店</th><th>成交</th><th>金额</th><th>转化率</th></tr></thead><tbody id="rankTbl"></tbody></table></div>
+          <div class="section-bd"><table><thead><tr><th>排名</th><th>销售</th><th>订单</th><th>到店</th><th>成交</th><th>活体金额</th><th>转化率</th></tr></thead><tbody id="rankTbl"></tbody></table></div>
         </div>
       </div>
 
-      <!-- City Map -->
+      <!-- City Map（T5 科技风大屏：四角卡片 + 居中地图） -->
       <div class="page" id="page-citymap">
-        <div class="section" id="cityMapSection"><div class="section-hd" id="cityMapHd"><h3>城市数据看板</h3><div class="tabs" style="margin:0"><button class="tab active" data-maptype="orders">订单量</button><button class="tab" data-maptype="visited">到店</button><button class="tab" data-maptype="closed">成交</button></div><button class="btn btn-sm btn-outline" id="fsBtn" onclick="toggleFullscreen()">全屏</button></div>
-        <div class="section-bd"><div class="map-container" id="mapChart"></div></div>
-        <div class="section-ft">点击「全屏」或地图区域进入全屏模式，按 ESC 退出</div></div>
-        <div class="section">
-          <div class="section-hd"><h3>城市排行</h3></div>
-          <div class="section-bd"><table><thead><tr><th>排名</th><th>城市</th><th>订单</th><th>到店</th><th>成交</th></tr></thead><tbody id="cityRankTbl"></tbody></table></div>
+        <div class="cm-screen" id="cmScreen">
+          <!-- R3/R4：主标题置顶居中 + 日历时钟浮在标题右下角 -->
+          <div class="cm-hero">
+            <div class="cm-title"><i>◆</i> 销售作战地图 · 城市实时态势</div>
+            <div class="cm-clock" id="cmTime">--</div>
+          </div>
+          <!-- R3：tabs / 全屏按钮移到右上角，不遮挡主标题 -->
+          <div class="cm-hd">
+            <div class="cm-tabs"><button class="cm-tab active" data-maptype="orders">订单量</button><button class="cm-tab" data-maptype="visited">到店</button><button class="cm-tab" data-maptype="closed">成交</button></div>
+            <div class="cm-ops"><button class="cm-btn" id="fsBtn" onclick="toggleFullscreen()">全屏</button></div>
+          </div>
+          <!-- R1：地图铺满，四个面板绝对定位浮在地图四角（无框） -->
+          <div class="cm-body">
+            <div class="cm-map" id="mapChart"></div>
+            <div class="cm-corner cm-tl">
+              <div class="cm-card"><h4>今日战报</h4><div class="cm-card-bd">
+                <div class="cm-kpis">
+                  <div class="cm-kpi"><div class="n" id="cmTodayVisited">0</div><div class="t">今日到店</div></div>
+                  <div class="cm-kpi k2"><div class="n" id="cmTodayClosed">0</div><div class="t">今日成交</div></div>
+                </div>
+              </div></div>
+            </div>
+            <div class="cm-corner cm-tr">
+              <div class="cm-card"><h4>全局概览</h4><div class="cm-card-bd">
+                <div class="cm-sum"><span>覆盖城市<b id="cmCityCount">0</b></span><span>累计订单<b id="cmTotalOrders">0</b></span></div>
+              </div></div>
+            </div>
+            <div class="cm-corner cm-bl">
+              <div class="cm-card"><h4>城市 TOP（订单量）</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmCityTop"></ul></div></div>
+            </div>
+            <div class="cm-corner cm-br">
+              <div class="cm-card"><h4>销售 TOP（按订单数）</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmSalesTop"></ul></div></div>
+            </div>
+            <!-- 四角放不下：容器隐藏但 DOM 保留，cmRank('cmClosedTop',...) 照常渲染不报错 -->
+            <div class="cm-corner cm-hidden">
+              <div class="cm-card"><h4>成交 TOP5 城市</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmClosedTop"></ul></div></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -188,11 +335,40 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
       <!-- Sales Follow -->
       <div class="page" id="page-sales-follow"><div class="section"><div class="section-hd"><h3>待跟进订单</h3></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>来源</th><th>创建</th><th>跟进次数</th><th>最后跟进</th><th>操作</th></tr></thead><tbody id="salesFollowTbl"></tbody></table></div><div class="section-ft" id="salesFollowCount"></div></div></div>
 
-      <!-- Finance -->
-      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>待确认成交</h3><div class="search-row"><input type="date" id="fDateFrom"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="fDateTo"><button class="btn btn-sm btn-outline" onclick="loadFinanceFollow()">筛选</button><button class="btn btn-sm btn-primary" onclick="downloadFinanceOrders()">导出Excel</button></div></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>日期</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
+      <!-- Finance：★ 已成交订单保留在列表内（补充需求），不做移除/折叠 -->
+      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>成交管理</h3><div class="search-row"><input type="date" id="fDateFrom"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="fDateTo"><select id="fDealFilter" onchange="loadFinanceFollow()"><option value="all">全部</option><option value="pending">待确认</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select><button class="btn btn-sm btn-outline" onclick="loadFinanceFollow()">筛选</button><button class="btn btn-sm btn-primary" onclick="downloadFinanceOrders()">导出Excel</button></div></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>日期</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>成交</th><th>金额</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
 
       <!-- Accounts -->
       <div class="page" id="page-accounts"><div class="section"><div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div><div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div><div class="section-ft">财务账号不可删除，只能编辑</div></div></div>
+
+      <!-- Data Tools（管理员数据管理面板） -->
+      <div class="page" id="page-datatools">
+        <div class="section"><div class="section-hd"><h3>订单数据导出</h3></div>
+          <div class="section-bd" style="padding:16px">
+            <div class="search-row" style="margin-bottom:10px">
+              <input type="date" id="exDateFrom" style="flex:0 0 auto"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="exDateTo" style="flex:0 0 auto">
+              <select id="exDealStatus"><option value="">全部成交状态</option><option value="pending">待确认</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select>
+              <button class="btn btn-sm btn-primary" onclick="exportOrdersXlsx()">导出订单 Excel</button>
+              <button class="btn btn-sm btn-outline" onclick="exportData()">备份全量 JSON</button>
+            </div>
+            <div class="hint" style="font-size:11px;color:var(--text3)">导出为 .xlsx，共 19 列（含活体/用品/合计/利润，金额为数值可直接求和），日期按创建时间的北京自然日过滤。</div>
+          </div>
+        </div>
+        <div class="section"><div class="section-hd"><h3>历史数据导入</h3><button class="btn btn-sm btn-outline" onclick="downloadTemplate()">下载导入模板</button></div>
+          <div class="section-bd" style="padding:16px">
+            <div class="search-row" style="margin-bottom:10px">
+              <input type="file" id="impFile" accept=".xlsx" style="flex:1;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px">
+              <button class="btn btn-sm btn-primary" id="impBtn" onclick="doImportXlsx()">开始导入</button>
+            </div>
+            <div class="hint" style="font-size:11px;color:var(--text3);line-height:1.9">
+              1. 仅支持模板导出的 .xlsx（≤5MB），「用户」页角色只能填 <b>销售 / 财务</b>；<br>
+              2. 「初始密码」留空将自动使用默认密码 <b>123456</b>，导入后请提醒相关同事及时改密；<br>
+              3. 采用<b>先全量校验、后写库</b>策略：任意一行不合规则整份拒绝，不会写入半份数据；<br>
+              4. 写库前会<b>自动备份</b>当前全量数据到 data/backup/，账号按用户名、订单按订单编号去重跳过。
+            </div>
+          </div>
+        </div>
+      </div>
 
     </div>
     <div class="mob-nav" id="mobNav"></div>
@@ -221,27 +397,31 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <div class="fg"><label>到店状态</label><select id="fVisit"><option value="">暂不更新</option><option value="visited">已到店</option><option value="not_visited">未到店</option></select></div>
 </div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('followModal')">取消</button><button class="btn btn-primary" onclick="saveFollow()">保存跟进</button></div></div></div>
 
-<!-- Finance Visit Modal -->
-<div class="modal-overlay" id="visitModal"><div class="modal"><div class="modal-hd"><h3>确认到店 - <span id="vcName"></span></h3><button class="modal-close" onclick="closeM('visitModal')">&times;</button></div>
-<div class="modal-bd"><input type="hidden" id="vOid">
-<div class="fg"><label>到店状态</label><select id="vStatus"><option value="visited">已到店</option><option value="not_visited">未到店</option></select></div>
-<div class="copy-preview" id="vCopyPreview" style="display:none;margin-top:10px"></div>
-</div>
-<div class="modal-ft" style="justify-content:space-between"><button class="copy-btn" onclick="copyVisitInfo()">复制订单信息</button><div style="display:flex;gap:8px"><button class="btn btn-outline" onclick="closeM('visitModal')">取消</button><button class="btn btn-primary" onclick="saveVisit()">确认</button></div></div></div></div>
+<!-- ⚠️ 原「Finance Visit Modal（确认到店）」已随变更 2 下线：
+     即将到店的订单由财务直接点「成交」一步完成（成交即视为到店），
+     后端 /api/orders/:id/visit 仍保留但前端不再提供入口，请勿恢复该弹窗。 -->
 
 <!-- Deal Modal -->
 <div class="modal-overlay" id="dealModal"><div class="modal"><div class="modal-hd"><h3>确认成交 - <span id="dcName"></span></h3><button class="modal-close" onclick="closeM('dealModal')">&times;</button></div>
 <div class="modal-bd"><input type="hidden" id="dOid">
+<div id="dVisitTip" style="display:none;font-size:11px;color:var(--orange);background:var(--orange-bg);border-radius:var(--rs);padding:8px 10px;margin-bottom:12px">该订单当前为「即将到店」，确认成交后将同时标记为<b>已到店</b>。</div>
 <div class="fg"><label>成交状态</label><select id="dStatus" onchange="toggleAmtSplit()"><option value="closed">已成交</option><option value="not_closed">未成交</option></select></div>
 <div id="dAmtSplit" class="amt-split">
   <h4>成交金额明细</h4>
   <div class="amt-row"><label>活体售卖</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dLiveAmt" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
   <div class="amt-row"><label>用品金额</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dSupplyAmt" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
-  <div class="amt-total"><span>合计</span><strong id="dAmtTotal">¥0</strong></div>
+  <div class="amt-total"><span>合计（活体 + 用品）</span><strong id="dAmtTotal">¥0</strong></div>
+  <div class="amt-row" style="margin-top:10px;margin-bottom:0;border-top:1px dashed var(--border);padding-top:10px"><label>利润</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dProfit" type="number" step="0.01" placeholder="0"></div>
+  <div class="amt-sub">由财务手工填写，可为负数（亏损单）；<b>不计入上方合计金额</b>，仅用于导出对账。</div>
 </div>
 <div class="fg"><label>备注</label><textarea id="dNote" placeholder="成交备注..."></textarea></div>
 </div>
 <div class="modal-ft"><button class="btn btn-outline" onclick="closeM('dealModal')">取消</button><button class="btn btn-primary" onclick="saveDeal()">确认提交</button></div></div></div>
+
+<!-- Import Result Modal -->
+<div class="modal-overlay" id="importModal"><div class="modal" style="width:640px"><div class="modal-hd"><h3 id="impTitle">导入结果</h3><button class="modal-close" onclick="closeM('importModal')">&times;</button></div>
+<div class="modal-bd" id="impBody"></div>
+<div class="modal-ft"><button class="btn btn-primary" onclick="closeM('importModal')">知道了</button></div></div></div>
 
 <!-- User Modal -->
 <div class="modal-overlay" id="userModal"><div class="modal"><div class="modal-hd"><h3 id="userModalTitle">新建销售账号</h3><button class="modal-close" onclick="closeM('userModal')">&times;</button></div>
@@ -272,7 +452,7 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 // Nav
 function buildNav(){
   const r=me.role,items=[];
-  if(r==='admin')items.push({p:'dashboard',l:'销售看板'},{p:'citymap',l:'城市地图'},{p:'orders',l:'订单管理'},{p:'sales-follow',l:'销售跟进'},{p:'finance-follow',l:'财务跟进'},{p:'accounts',l:'账号管理'});
+  if(r==='admin')items.push({p:'dashboard',l:'销售看板'},{p:'citymap',l:'城市地图'},{p:'orders',l:'订单管理'},{p:'sales-follow',l:'销售跟进'},{p:'finance-follow',l:'财务跟进'},{p:'accounts',l:'账号管理'},{p:'datatools',l:'数据管理'});
   else if(r==='sales')items.push({p:'orders',l:'我的订单'},{p:'sales-follow',l:'跟进客户'});
   else if(r==='finance')items.push({p:'finance-follow',l:'确认成交'});
   document.getElementById('sidebarNav').innerHTML=items.map(i=>`<div class="nav-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('');
@@ -285,11 +465,12 @@ function switchPage(page){
   const pg=document.getElementById('page-'+page);if(pg)pg.classList.add('active');
   document.querySelectorAll('.nav-item,.mob-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll(`[data-page="${page}"]`).forEach(n=>n.classList.add('active'));
-  document.getElementById('pageTitle').textContent={dashboard:'销售看板',citymap:'城市地图',orders:'订单管理','sales-follow':'销售跟进','finance-follow':'财务跟进',accounts:'账号管理'}[page]||'';
+  document.getElementById('pageTitle').textContent={dashboard:'销售看板',citymap:'城市地图',orders:'订单管理','sales-follow':'销售跟进','finance-follow':'成交管理',accounts:'账号管理',datatools:'数据管理'}[page]||'';
   const ah=document.getElementById('headerActions');
-  if(page==='dashboard'&&me.role==='admin')ah.innerHTML='<button class="btn btn-sm btn-outline" onclick="exportData()">导出数据</button>';
+  if(page==='dashboard'&&me.role==='admin')ah.innerHTML='<button class="btn btn-sm btn-outline" onclick="switchPage(\'datatools\')">数据管理</button>';
   else if((page==='orders'||page==='sales-follow')&&(me.role==='admin'||me.role==='sales'))ah.innerHTML='<button class="btn btn-sm btn-primary" onclick="openOrderCreate()">+ 新建订单</button>';
   else ah.innerHTML='';
+  if(page!=='citymap'&&mapFullscreen)exitFullscreen();
   if(page==='dashboard')loadDashboard();
   if(page==='citymap'){citymapAutoFull=true;loadCityMap();}
   if(page==='orders')loadOrders();
@@ -376,26 +557,46 @@ async function reportOrder(oid){try{const r=await api('GET','/api/orders');const
 async function openFollow(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('fOid').value=oid;document.getElementById('fcName').textContent=o.custName;document.getElementById('fNote').value='';document.getElementById('fVisit').value='';document.getElementById('followModal').classList.add('show')}catch(e){}}
 async function saveFollow(){try{await api('POST','/api/orders/'+document.getElementById('fOid').value+'/follow',{note:document.getElementById('fNote').value.trim(),visitStatus:document.getElementById('fVisit').value||null});closeM('followModal');refreshCurrent()}catch(e){alert('操作失败')}}
 
-// Finance visit confirmation
-async function openVisit(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('vOid').value=oid;document.getElementById('vcName').textContent=o.custName;document.getElementById('vStatus').value='visited';document.getElementById('vCopyPreview').style.display='none';document.getElementById('visitModal').classList.add('show')}catch(e){}}
-async function saveVisit(){const oid=document.getElementById('vOid').value;const vs=document.getElementById('vStatus').value;try{await api('POST','/api/orders/'+oid+'/visit',{visitStatus:vs});closeM('visitModal');refreshCurrent()}catch(e){alert('操作失败')}}
-async function copyVisitInfo(){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===document.getElementById('vOid').value);if(!o)return;const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【位置】：'+(o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');await navigator.clipboard.writeText(text);const p=document.getElementById('vCopyPreview');p.textContent=text.replace(/\n/g,'\n');p.style.display='block'}catch(e){alert('复制失败')}}
+// ⚠️ openVisit / saveVisit / copyVisitInfo 已随变更 2 删除：
+//    「确认到店」不再是独立步骤，pending_visit 直接走 openDeal 一步成交；
+//    「复制订单信息」已下沉为订单行操作 copyOrderInfo(oid)，见下方。
 
-// Deal
+// Deal（变更 1：新增利润输入；变更 2：pending_visit 亦可直接成交）
 function toggleAmtSplit(){document.getElementById('dAmtSplit').style.display=document.getElementById('dStatus').value==='closed'?'block':'none'}
+// 合计只算「活体 + 用品」，利润不参与合计（A9 铁律，与后端 dealAmount 口径一致）
 function calcAmtTotal(){const l=parseFloat(document.getElementById('dLiveAmt').value)||0,s=parseFloat(document.getElementById('dSupplyAmt').value)||0;document.getElementById('dAmtTotal').textContent='¥'+(l+s).toFixed(2)}
-async function openDeal(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('dOid').value=oid;document.getElementById('dcName').textContent=o.custName;document.getElementById('dStatus').value='closed';document.getElementById('dLiveAmt').value='';document.getElementById('dSupplyAmt').value='';document.getElementById('dNote').value='';document.getElementById('dAmtSplit').style.display='block';calcAmtTotal();document.getElementById('dealModal').classList.add('show')}catch(e){}}
-async function saveDeal(){const dealStatus=document.getElementById('dStatus').value,liveAmount=parseFloat(document.getElementById('dLiveAmt').value)||0,supplyAmount=parseFloat(document.getElementById('dSupplyAmt').value)||0,note=document.getElementById('dNote').value.trim();const oid=document.getElementById('dOid').value;if(dealStatus==='closed'&&liveAmount+supplyAmount<=0){alert('请输入成交金额');return}try{await api('POST','/api/orders/'+oid+'/deal',{dealStatus,liveAmount,supplyAmount,note});closeM('dealModal');refreshCurrent()}catch(e){alert('操作失败')}}
+async function openDeal(oid){
+  try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;
+  document.getElementById('dOid').value=oid;
+  document.getElementById('dcName').textContent=o.custName;
+  document.getElementById('dStatus').value='closed';
+  document.getElementById('dLiveAmt').value='';document.getElementById('dSupplyAmt').value='';document.getElementById('dProfit').value='';
+  document.getElementById('dNote').value='';
+  document.getElementById('dAmtSplit').style.display='block';
+  document.getElementById('dVisitTip').style.display=o.visitStatus==='pending_visit'?'block':'none';
+  calcAmtTotal();
+  document.getElementById('dealModal').classList.add('show')}catch(e){}
+}
+async function saveDeal(){
+  const dealStatus=document.getElementById('dStatus').value;
+  const liveAmount=parseFloat(document.getElementById('dLiveAmt').value)||0;
+  const supplyAmount=parseFloat(document.getElementById('dSupplyAmt').value)||0;
+  const profit=parseFloat(document.getElementById('dProfit').value)||0; // 允许负数
+  const note=document.getElementById('dNote').value.trim();
+  const oid=document.getElementById('dOid').value;
+  if(dealStatus==='closed'&&liveAmount+supplyAmount<=0){alert('请输入成交金额');return}
+  try{await api('POST','/api/orders/'+oid+'/deal',{dealStatus,liveAmount,supplyAmount,profit,note});closeM('dealModal');refreshCurrent()}catch(e){alert('操作失败')}
+}
 
-// Copy order info
-async function copyOrderInfo(){
-  try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===document.getElementById('dOid').value);
-  if(!o)return;
-  const text=`【日期】：${new Date().toISOString().slice(0,10)}\n【城市】：${o.custCity||'-'}\n【品种】：${o.custProduct||'-'}\n【电话】：${o.custPhone||'-'}\n【位置】：${o.storeAddress||'-'}\n【备注】：${o.custNote||'-'}`;
-  await navigator.clipboard.writeText(text);
-  const p=document.getElementById('copyPreview');p.textContent=text.replace(/\n/g,'<br>');p.style.display='block';
-  setTimeout(()=>p.style.display='none',3000);
-  }catch(e){alert('复制失败')}
+// Copy order info（订单行操作，不再依赖任何弹窗上下文）
+async function copyOrderInfo(oid){
+  try{
+    const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);
+    if(!o){alert('订单不存在');return}
+    const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【位置】：'+(o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');
+    await navigator.clipboard.writeText(text);
+    alert('订单信息已复制到剪贴板');
+  }catch(e){alert('复制失败，请检查浏览器剪贴板权限')}
 }
 
 // Load data
@@ -406,51 +607,114 @@ async function loadDashboard(period){
     <div class="stat-card c1"><div class="stat-label">新增订单</div><div class="stat-value">${d.total}</div><div class="stat-sub">累计 ${s.all.total} 条</div></div>
     <div class="stat-card c2"><div class="stat-label">到店客户</div><div class="stat-value">${d.visited}</div><div class="stat-sub">到店率 ${d.total?Math.round(d.visited/d.total*100):0}%</div></div>
     <div class="stat-card c3"><div class="stat-label">成交订单</div><div class="stat-value">${d.closed}</div><div class="stat-sub">成交率 ${d.visited?Math.round(d.closed/d.visited*100):0}%</div></div>
-    <div class="stat-card c4"><div class="stat-label">成交金额</div><div class="stat-value">${fm(d.revenue)}</div><div class="stat-sub">客单价 ${d.closed?fm(d.revenue/d.closed):'-'}</div></div>`;
+    <div class="stat-card c4"><div class="stat-label">成交金额（活体口径）</div><div class="stat-value">${fm(d.liveRevenue||0)}</div><div class="stat-sub">客单价 ${d.closed?fm((d.liveRevenue||0)/d.closed):'-'} · 含用品合计 ${fm(d.revenue||0)}</div></div>`;
   document.getElementById('amtStatGrid').innerHTML=`
     <div class="stat-card"><div class="stat-label">活体售卖</div><div class="stat-value" style="color:var(--accent)">${fm(d.liveRevenue||0)}</div></div>
     <div class="stat-card"><div class="stat-label">用品金额</div><div class="stat-value" style="color:var(--green)">${fm(d.supplyRevenue||0)}</div></div>`;
   const maxT=Math.max(...r.trend.map(x=>x.orders),1);
-  document.getElementById('trendChart').innerHTML=r.trend.map(x=>`<div class="bar-item"><div class="bar-val">${x.orders}</div><div class="bar" style="height:${Math.max(x.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${x.label}</div></div>`).join('');
+  // 变更 3：趋势 tooltip 的营收统一取活体口径（后端 trend.revenue 已改为 dealLiveAmount 汇总）
+  document.getElementById('trendChart').innerHTML=r.trend.map(x=>`<div class="bar-item" title="${x.label} 订单${x.orders} · 到店${x.visited} · 成交${x.closed} · 活体营收${fm(x.revenue||0)}"><div class="bar-val">${x.orders}</div><div class="bar" style="height:${Math.max(x.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${x.label}</div></div>`).join('');
   const sc={'新建':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'跟进中':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'已到店':d.visited-d.closed-d.notClosed,'未到店':d.notVisited,'已成交':d.closed,'未成交':d.notClosed};
   const scM=Math.max(...Object.values(sc),1);const cc={'新建':'#3b82f6','跟进中':'#f59e0b','已到店':'#22c55e','未到店':'#ef4444','已成交':'#a855f7','未成交':'#ef4444'};
   document.getElementById('statusChart').innerHTML=Object.entries(sc).map(([k,v])=>`<div class="bar-item"><div class="bar-val">${v}</div><div class="bar" style="height:${Math.max(v/scM*100,3)}px;background:${cc[k]}"></div><div class="bar-label">${k}</div></div>`).join('');
-  document.getElementById('rankTbl').innerHTML=r.ranking.length?r.ranking.map((x,i)=>`<tr><td>#${i+1}</td><td>${x.name}</td><td>${x.total}</td><td>${x.visited}</td><td>${x.closed}</td><td class="amt">${fm(x.revenue)}</td><td>${x.total?Math.round(x.closed/x.total*100):0}%</td></tr>`).join(''):'<tr><td colspan="7" class="empty">暂无数据</td></tr>';
+  // 变更 3：排行金额列改活体口径，与后端排序键 liveRevenue 保持一致（否则会出现「排第一但金额更小」）
+  document.getElementById('rankTbl').innerHTML=r.ranking.length?r.ranking.map((x,i)=>`<tr><td>#${i+1}</td><td>${x.name}</td><td>${x.total}</td><td>${x.visited}</td><td>${x.closed}</td><td class="amt" title="含用品合计 ${fm(x.revenue||0)}">${fm(x.liveRevenue||0)}</td><td>${x.total?Math.round(x.closed/x.total*100):0}%</td></tr>`).join(''):'<tr><td colspan="7" class="empty">暂无数据</td></tr>';
   }catch(e){}
 }
 
-// City map
+// ====== T5 城市地图大屏（科技风）======
+// 全屏改为整块 #cmScreen 上屏（四角卡片跟随），不再单独 fix 地图 DOM。
 let mapChart=null,mapFullscreen=false,citymapAutoFull=false;
-function toggleFullscreen(){
-  const d=document.getElementById('mapChart'),hd=document.getElementById('cityMapHd'),btn=document.getElementById('fsBtn');
-  if(!mapFullscreen){
-    d.style.position='fixed';d.style.inset='0';d.style.zIndex='200';d.style.width='100vw';d.style.height='100vh';
-    hd.style.position='fixed';hd.style.top='0';hd.style.left='0';hd.style.right='0';hd.style.zIndex='201';
-    if(btn)btn.textContent='退出全屏';
-    mapFullscreen=true;
-  }else exitFullscreen();
-  if(mapChart)mapChart.resize();
+function toggleFullscreen(){if(mapFullscreen){exitFullscreen();return}
+  const sc=document.getElementById('cmScreen'),btn=document.getElementById('fsBtn');
+  if(!sc)return;
+  sc.classList.add('cm-full');document.body.style.overflow='hidden';
+  if(btn)btn.textContent='退出全屏';
+  mapFullscreen=true;
+  setTimeout(()=>{if(mapChart)mapChart.resize()},60);
 }
 function exitFullscreen(){
-  const d=document.getElementById('mapChart'),hd=document.getElementById('cityMapHd'),btn=document.getElementById('fsBtn');
-  d.style.position='';d.style.inset='';d.style.zIndex='';d.style.width='100%';d.style.height='400px';
-  hd.style.position='';hd.style.top='';hd.style.left='';hd.style.right='';hd.style.zIndex='';
+  const sc=document.getElementById('cmScreen'),btn=document.getElementById('fsBtn');
+  if(sc)sc.classList.remove('cm-full');
+  document.body.style.overflow='';
   if(btn)btn.textContent='全屏';
   mapFullscreen=false;
-  if(mapChart)mapChart.resize();
+  setTimeout(()=>{if(mapChart)mapChart.resize()},60);
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mapFullscreen)exitFullscreen()});
+
+/** R4：大屏日历时钟。固定北京时间 UTC+8（不依赖浏览器本地时区），含秒，每秒走动。 */
+var CM_WEEK=['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+function cmClockTick(){
+  var el=document.getElementById('cmTime');if(!el)return;
+  var now=new Date();
+  // 当前 UTC 毫秒 + 8 小时，再用 getUTC* 读取，得到稳定的北京时间
+  var bj=new Date(now.getTime()+now.getTimezoneOffset()*60000+8*3600000);
+  var p=function(n){return n<10?'0'+n:''+n};
+  el.innerHTML=bj.getFullYear()+'年'+(bj.getMonth()+1)+'月'+bj.getDate()+'日 '+CM_WEEK[bj.getDay()]+' '
+    +p(bj.getHours())+':'+p(bj.getMinutes())+'<span class="cm-sec">:'+p(bj.getSeconds())+'</span>';
+}
+cmClockTick();
+if(!window.__cmClockTimer)window.__cmClockTimer=setInterval(cmClockTick,1000);
+window.addEventListener('resize',()=>{if(mapChart&&currentPage==='citymap')mapChart.resize()});
+
+/** 渲染大屏排行卡片。 */
+function cmRank(elId,rows,valKey,green){
+  const el=document.getElementById(elId);if(!el)return;
+  if(!rows||!rows.length){el.innerHTML='<li class="cm-empty">暂无数据</li>';return}
+  const max=Math.max(...rows.map(x=>Number(x[valKey])||0),1);
+  el.innerHTML=rows.map((x,i)=>`<li><span class="idx">${i+1}</span><span class="col"><span class="nm">${x.name}</span><span class="cm-bar" style="width:${Math.max((Number(x[valKey])||0)/max*100,4)}%"></span></span><span class="vl${green?' g':''}">${Number(x[valKey])||0}</span></li>`).join('');
+}
+
 async function loadCityMap(type){
   if(type)mapType=type;
-  try{const r=await api('GET','/api/cityStats');const dom=document.getElementById('mapChart');
-  if(!mapChart){mapChart=echarts.init(dom);mapChart.on('click',()=>{if(!mapFullscreen)toggleFullscreen()})}
-  const cities=r.cities||[];const key=mapType,titleN={orders:'订单量',visited:'到店数',closed:'成交数'}[key];
-  const maxV=Math.max(...cities.map(c=>c[key]||0),1);
-  if(window.chinaGeo){echarts.registerMap('china',window.chinaGeo);const nameMap={};window.chinaGeo.features.forEach(f=>{const n=f.properties.name;nameMap[n.replace(/市|省|自治区|壮族|回族|维吾尔/g,'')]=n;nameMap[n]=n});
-  const mapData=cities.map(c=>{const cn=nameMap[c.city]||(c.city+'市');return{name:cn,value:c[key]}});
-  mapChart.setOption({title:{text:'',left:'center',top:5,textStyle:{fontSize:13,color:'#9498a8'}},tooltip:{trigger:'item',formatter:p=>p.name.replace(/市$/,'')+'<br/>'+titleN+': '+(p.value||0)},visualMap:{min:0,max:maxV||1,text:['高','低'],realtime:false,calculable:true,inRange:{color:['#1a1d28','#1a3a6a','#2a5aa0','#4f7cf7','#6b91ff']},textStyle:{color:'#9498a8'},left:'left',bottom:10},geo:{map:'china',roam:true,itemStyle:{areaColor:'#222533',borderColor:'#3a3d4a'},label:{show:false},emphasis:{itemStyle:{areaColor:'#2a3a5a'},label:{show:true,color:'#fff'}}},series:[{name:titleN,type:'map',map:'china',geoIndex:0,data:mapData}]},true)}else{mapChart.setOption({tooltip:{formatter:p=>'<b>'+p.name+'</b><br/>'+titleN+': '+p.value[2]},xAxis:{type:'category',data:cities.map(c=>c.city),axisLabel:{fontSize:10,color:'#9498a8'}},yAxis:{type:'value',splitLine:{lineStyle:{color:'#2a2d3a',type:'dashed'}}},series:[{type:'scatter',symbolSize:d=>Math.max(d[2]/maxV*60+8,10),data:cities.map(c=>[c.city,c[key]||0,c[key]||0]),itemStyle:{color:'#4f7cf7',opacity:.7},label:{show:true,formatter:p=>p.value[2],fontSize:11,color:'#e1e4ed'}}]},true)}
-  document.getElementById('cityRankTbl').innerHTML=cities.length?cities.map((c,i)=>`<tr><td>#${i+1}</td><td>${c.city}</td><td>${c.orders}</td><td>${c.visited}</td><td style="color:var(--green);font-weight:600">${c.closed}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">暂无数据</td></tr>';
-  if(citymapAutoFull&&!mapFullscreen){toggleFullscreen();citymapAutoFull=false;}
+  try{
+    // 数据源：地图/城市榜走 cityStats，今日战报 + 销售榜走 mapStats（北京时区口径，后端统一算好）
+    const r=await api('GET','/api/cityStats');
+    const cities=r.cities||[];
+    const key=mapType,titleN={orders:'订单量',visited:'到店数',closed:'成交数'}[key]||'订单量';
+    const maxV=Math.max(...cities.map(c=>c[key]||0),1);
+    const dom=document.getElementById('mapChart');
+    if(!mapChart&&dom)mapChart=echarts.init(dom,null,{renderer:'canvas'});
+    if(mapChart){
+      if(window.chinaGeo){
+        echarts.registerMap('china',window.chinaGeo);
+        const nameMap={};window.chinaGeo.features.forEach(f=>{const n=f.properties.name;nameMap[n.replace(/市|省|自治区|壮族|回族|维吾尔/g,'')]=n;nameMap[n]=n});
+        const mapData=cities.map(c=>{const cn=nameMap[c.city]||(c.city+'市');return{name:cn,value:c[key]||0}});
+        mapChart.setOption({
+          backgroundColor:'transparent',
+          tooltip:{trigger:'item',backgroundColor:'rgba(4,10,22,.92)',borderColor:'rgba(0,229,255,.45)',borderWidth:1,textStyle:{color:'#cfe9ff',fontSize:12},formatter:p=>String(p.name).replace(/市$/,'')+'<br/>'+titleN+': '+(p.value||0)},
+          visualMap:{min:0,max:maxV,text:['高','低'],realtime:false,calculable:true,inRange:{color:['#07162b','#0c3a5c','#0f6c93','#00b4d8','#00e5ff']},textStyle:{color:'#6f8fb5',fontSize:11},left:14,bottom:14,itemWidth:11,itemHeight:96},
+          geo:{map:'china',roam:true,zoom:1.12,itemStyle:{areaColor:'#08182f',borderColor:'rgba(0,229,255,.38)',borderWidth:.8,shadowColor:'rgba(0,229,255,.35)',shadowBlur:16},label:{show:false},emphasis:{itemStyle:{areaColor:'#123a63',borderColor:'#00e5ff'},label:{show:true,color:'#eaf7ff',fontSize:11}}},
+          series:[{name:titleN,type:'map',map:'china',geoIndex:0,data:mapData}]
+        },true);
+      }else{
+        mapChart.setOption({
+          backgroundColor:'transparent',
+          grid:{left:44,right:16,top:24,bottom:34},
+          tooltip:{backgroundColor:'rgba(4,10,22,.92)',borderColor:'rgba(0,229,255,.45)',textStyle:{color:'#cfe9ff'},formatter:p=>'<b>'+p.name+'</b><br/>'+titleN+': '+p.value[2]},
+          xAxis:{type:'category',data:cities.map(c=>c.city),axisLabel:{fontSize:10,color:'#6f8fb5'},axisLine:{lineStyle:{color:'rgba(0,229,255,.3)'}}},
+          yAxis:{type:'value',axisLabel:{color:'#6f8fb5'},splitLine:{lineStyle:{color:'rgba(0,229,255,.12)',type:'dashed'}}},
+          series:[{type:'scatter',symbolSize:d=>Math.max(d[2]/maxV*60+8,10),data:cities.map(c=>[c.city,c[key]||0,c[key]||0]),itemStyle:{color:'#00e5ff',opacity:.75,shadowColor:'rgba(0,229,255,.7)',shadowBlur:12},label:{show:true,formatter:p=>p.value[2],fontSize:11,color:'#eaf7ff'}}]
+        },true);
+      }
+    }
+    // 右上：城市 TOP（订单量）；右下：成交 TOP5
+    cmRank('cmCityTop',cities.slice(0,5).map(c=>({name:c.city,orders:c.orders})),'orders',false);
+    cmRank('cmClosedTop',cities.filter(c=>c.closed>0).sort((a,b)=>b.closed-a.closed).slice(0,5).map(c=>({name:c.city,closed:c.closed})),'closed',true);
+    document.getElementById('cmCityCount').textContent=cities.length;
+    document.getElementById('cmTotalOrders').textContent=cities.reduce((s,c)=>s+(c.orders||0),0);
+
+    // 左上/左下：今日战报 + 销售 TOP（按订单数），失败不影响地图本体
+    try{
+      const m=await api('GET','/api/mapStats?limit=5');
+      document.getElementById('cmTodayVisited').textContent=m.todayVisited||0;
+      document.getElementById('cmTodayClosed').textContent=m.todayClosed||0;
+      cmRank('cmSalesTop',(m.salesTop||[]).slice(0,5).map(s=>({name:s.name||'未知',total:s.total||0})),'total',false);
+    }catch(e){cmRank('cmSalesTop',[],'total',false)}
+
+    if(citymapAutoFull&&!mapFullscreen){toggleFullscreen();citymapAutoFull=false}
+    if(mapChart)setTimeout(()=>mapChart.resize(),40);
   }catch(e){}
 }
 
@@ -466,6 +730,7 @@ async function loadOrders(){
     if(o.visitStatus==='pending_visit'&&o.dealStatus===null&&(me.role==='admin'||me.role==='finance'))act+=`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">确认成交</button>`;
     if(o.visitStatus==='visited'&&o.dealStatus===null&&(me.role==='admin'||me.role==='finance'))act+=`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">确认成交</button>`;
     if(sa&&o.dealStatus===null)act+=`<button class="btn btn-sm btn-outline" onclick="openOrderCreate('${o.id}')">编辑</button>`;
+    act+=`<button class="btn btn-sm btn-outline" onclick="copyOrderInfo('${o.id}')">复制</button>`; // 变更 2：复制入口下沉到订单行
     const vb=o.visitStatus==='visited'?'<span class="badge b-visited">已到店</span>':o.visitStatus==='not_visited'?'<span class="badge b-nvisit">未到店</span>':o.visitStatus==='pending_visit'?'<span class="badge b-follow">即将到店</span>':'<span class="badge b-pending">待确认</span>';
     return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td>${o.custProduct||'-'}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td>${vb}</td><td>${o.dealStatus==='closed'?'<span class="badge b-closed">已成交</span>':o.dealStatus==='not_closed'?'<span class="badge b-nclosed">未成交</span>':'<span class="badge b-pending">待确认</span>'}</td><td>${o.dealStatus==='closed'?'<span class="amt">'+fm(o.dealAmount)+'</span>':'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="12" class="empty">暂无订单数据</td></tr>';
   document.getElementById('ordersCount').textContent=`共 ${orders.length} 条`;}catch(e){}
@@ -479,28 +744,48 @@ async function loadSalesFollow(){
 
 async function loadFinanceFollow(){
   try{const r=await api('GET','/api/orders');
-  let orders=r.orders.filter(o=>(o.visitStatus==='visited'||o.visitStatus==='pending_visit')&&o.dealStatus===null);
+  // ★ 补充需求：已成交订单必须继续留在财务列表里（供核对与导出），
+  //   可见范围只由 visitStatus 决定，严禁再加 dealStatus===null 过滤。
+  let orders=r.orders.filter(o=>o.visitStatus==='visited'||o.visitStatus==='pending_visit');
   const df=document.getElementById('fDateFrom').value,dt=document.getElementById('fDateTo').value;
-  if(df)orders=orders.filter(o=>o.createdAt.slice(0,10)>=df);
-  if(dt)orders=orders.filter(o=>o.createdAt.slice(0,10)<=dt);
+  const dealF=document.getElementById('fDealFilter')?document.getElementById('fDealFilter').value:'all';
+  if(df)orders=orders.filter(o=>(o.createdAt||'').slice(0,10)>=df);
+  if(dt)orders=orders.filter(o=>(o.createdAt||'').slice(0,10)<=dt);
+  if(dealF==='pending')orders=orders.filter(o=>o.dealStatus===null||o.dealStatus===undefined);
+  else if(dealF==='closed'||dealF==='not_closed')orders=orders.filter(o=>o.dealStatus===dealF);
+  const pending=orders.filter(o=>o.dealStatus===null||o.dealStatus===undefined).length;
+  const closedN=orders.filter(o=>o.dealStatus==='closed').length;
   const vb=v=>v==='visited'?'<span class="badge b-visited">已到店</span>':v==='pending_visit'?'<span class="badge b-follow">即将到店</span>':'<span class="badge b-pending">待确认</span>';
+  const db=d=>d==='closed'?'<span class="badge b-closed">已成交</span>':d==='not_closed'?'<span class="badge b-nclosed">未成交</span>':'<span class="badge b-pending">待确认</span>';
   document.getElementById('financeTbl').innerHTML=orders.length?orders.map(o=>{
-    const btn=o.visitStatus==='pending_visit'?`<button class="btn btn-sm btn-primary" onclick="openVisit('${o.id}')">确认到店</button>`:`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">确认成交</button>`;
-    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td>${btn}</td></tr>`}).join(''):'<tr><td colspan="10" class="empty">暂无订单</td></tr>';
-  document.getElementById('financeCount').textContent=`共 ${orders.length} 条`;}catch(e){}
+    const done=o.dealStatus!==null&&o.dealStatus!==undefined;
+    // 已处理的订单只保留「复制」，隐藏成交按钮（但行本身保留）
+    const act=(done?'':`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">成交</button>`)
+      +`<button class="btn btn-sm btn-outline" onclick="copyOrderInfo('${o.id}')">复制</button>`;
+    const amt=o.dealStatus==='closed'?`<span class="amt" title="活体 ${fm(o.dealLiveAmount||0)} / 用品 ${fm(o.dealSupplyAmount||0)} / 利润 ${fm(o.dealProfit||0)}">${fm(o.dealAmount)}</span>`:'-';
+    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${db(o.dealStatus)}</td><td>${amt}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="12" class="empty">暂无订单</td></tr>';
+  document.getElementById('financeCount').textContent=`共 ${orders.length} 条 · 待确认 ${pending} 条 · 已成交 ${closedN} 条`;}catch(e){}
 }
 
+// 导出改为后端生成真 .xlsx（原前端抓 DOM 拼 HTML 伪 xls 的实现已废弃：
+// 抓 DOM 会漏掉未渲染字段、金额变文本、且拿不到已成交单的金额明细）。
 function downloadFinanceOrders(){
-  const rows=[],tbl=document.getElementById('financeTbl');
-  const df=document.getElementById('fDateFrom')?.value||'',dt=document.getElementById('fDateTo')?.value||'';
-  tbl.querySelectorAll('tr').forEach(tr=>{if(tr.querySelector('.empty'))return;const r=[];tr.querySelectorAll('td').forEach(td=>{if(!td.querySelector('button'))r.push(td.textContent.trim())});if(r.length)rows.push(r)});
-  let html='<html><head><meta charset="UTF-8"><style>td{border:1px solid #ccc;padding:4px 8px}th{background:#eee;font-weight:bold}</style></head><body>';
-  html+='<h3>订单列表'+(df?' ('+df+(dt?' ~ '+dt:'')+')':'')+'</h3>';
-  html+='<table><tr><th>订单号</th><th>日期</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>销售</th><th>店铺</th><th>备注</th></tr>';
-  rows.forEach(r=>html+='<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>');
-  html+='</table></body></html>';
-  const a=document.createElement('a');a.href='data:application/vnd.ms-excel;charset=utf-8,\ufeff'+encodeURIComponent(html);
-  a.download='订单列表'+(df?'-'+df:'')+'.xls';a.click()
+  const df=document.getElementById('fDateFrom')?document.getElementById('fDateFrom').value:'';
+  const dt=document.getElementById('fDateTo')?document.getElementById('fDateTo').value:'';
+  const dealF=document.getElementById('fDealFilter')?document.getElementById('fDealFilter').value:'all';
+  const qs=[];
+  if(df)qs.push('start='+encodeURIComponent(df));
+  if(dt)qs.push('end='+encodeURIComponent(dt));
+  if(dealF&&dealF!=='all')qs.push('dealStatus='+encodeURIComponent(dealF));
+  triggerDownload('/api/export/orders.xlsx'+(qs.length?'?'+qs.join('&'):''));
+}
+
+/** 触发浏览器下载（同源导航自动带 session cookie）。 */
+function triggerDownload(url){
+  const a=document.createElement('a');
+  a.href=url;a.rel='noopener';a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>document.body.removeChild(a),1000);
 }
 
 // Users
@@ -510,7 +795,78 @@ async function openUserEdit(id){try{const r=await api('GET','/api/users');const 
 async function saveUser(){const id=document.getElementById('editUid').value,username=document.getElementById('uUser').value.trim(),name=document.getElementById('uName').value.trim(),password=document.getElementById('uPass').value.trim();if(!id&&(!username||!password||!name)){alert('请填写完整信息');return}try{if(id)await api('PUT','/api/users/'+id,{username, name, password:password||undefined});else await api('POST','/api/users',{username,password,name});closeM('userModal');loadUsers()}catch(e){alert('操作失败')}}
 async function delUser(id,name){if(!confirm(`确定删除"${name}"？`))return;try{await api('DELETE','/api/users/'+id);loadUsers()}catch(e){alert('删除失败')}}
 
-async function exportData(){try{const r=await fetch('/api/export',{credentials:'same-origin'});const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sales-export.json';a.click()}catch(e){}}
+// ====== 数据管理（导出 / 模板 / 导入）======
+async function exportData(){try{const r=await fetch('/api/export',{credentials:'same-origin'});const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sales-export-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}catch(e){alert('备份失败')}}
+
+function exportOrdersXlsx(){
+  const df=document.getElementById('exDateFrom').value,dt=document.getElementById('exDateTo').value,ds=document.getElementById('exDealStatus').value;
+  const qs=[];
+  if(df)qs.push('start='+encodeURIComponent(df));
+  if(dt)qs.push('end='+encodeURIComponent(dt));
+  if(ds)qs.push('dealStatus='+encodeURIComponent(ds));
+  triggerDownload('/api/export/orders.xlsx'+(qs.length?'?'+qs.join('&'):''));
+}
+
+function downloadTemplate(){triggerDownload('/api/import/template.xlsx')}
+
+async function doImportXlsx(){
+  const input=document.getElementById('impFile'),btn=document.getElementById('impBtn');
+  const file=input.files&&input.files[0];
+  if(!file){alert('请先选择要导入的 .xlsx 文件');return}
+  if(!/\.xlsx$/i.test(file.name)){alert('仅支持 .xlsx 格式');return}
+  if(file.size>5*1024*1024){alert('文件不能超过 5MB');return}
+  if(!confirm('确定导入「'+file.name+'」？\n系统会先做全量校验，通过后自动备份并写入。'))return;
+  const fd=new FormData();fd.append('file',file);
+  btn.disabled=true;btn.textContent='导入中...';
+  try{
+    const resp=await fetch('/api/import/xlsx',{method:'POST',body:fd,credentials:'same-origin'});
+    const data=await resp.json().catch(()=>({error:'服务端返回异常'}));
+    if(resp.status===401){me=null;showLogin();return}
+    renderImportResult(resp.ok&&data.success,data);
+    if(resp.ok&&data.success)input.value='';
+  }catch(e){renderImportResult(false,{error:'网络错误，导入未执行'})}
+  finally{btn.disabled=false;btn.textContent='开始导入'}
+}
+
+/** 渲染导入结果弹窗（成功摘要 / 失败明细）。 */
+function renderImportResult(ok,data){
+  const esc=t=>String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const title=document.getElementById('impTitle'),body=document.getElementById('impBody');
+  if(!ok){
+    title.textContent='导入失败 · 未写入任何数据';
+    let h=`<div style="color:var(--red);font-size:13px;margin-bottom:10px">${esc(data.error||'校验未通过')}</div>`;
+    if(data.errors&&data.errors.length){
+      h+=`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">共 ${data.errorCount||data.errors.length} 处问题，请修正后重新上传（下方最多展示 50 条）：</div>`;
+      h+='<table><thead><tr><th>工作表</th><th>行号</th><th>列</th><th>原因</th></tr></thead><tbody>'
+        +data.errors.slice(0,50).map(e=>`<tr><td>${esc(e.sheet)}</td><td>${esc(e.row)}</td><td>${esc(e.column)}</td><td style="color:var(--red)">${esc(e.message)}</td></tr>`).join('')
+        +'</tbody></table>';
+    }
+    body.innerHTML=h;
+  }else{
+    title.textContent='导入完成';
+    const u=data.users||{added:0,skipped:0,failed:0},o=data.orders||{added:0,skipped:0,failed:0};
+    let h=`<div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+      <div class="stat-card"><div class="stat-label">账号</div><div class="stat-value" style="font-size:20px;color:var(--green)">新增 ${u.added}</div><div class="stat-sub">跳过重复 ${u.skipped} · 失败 ${u.failed}</div></div>
+      <div class="stat-card"><div class="stat-label">订单</div><div class="stat-value" style="font-size:20px;color:var(--green)">新增 ${o.added}</div><div class="stat-sub">跳过重复 ${o.skipped} · 失败 ${o.failed}</div></div>
+    </div>`;
+    if(data.backupFile)h+=`<div style="font-size:11px;color:var(--text2);margin-bottom:10px">已自动备份原始数据至 <code style="color:var(--accent)">${esc(data.backupFile)}</code></div>`;
+    if(data.defaultPasswordUsers&&data.defaultPasswordUsers.length){
+      h+=`<div style="border:1px solid var(--orange);background:var(--orange-bg);border-radius:var(--rs);padding:10px;margin-bottom:10px;font-size:12px">
+        <b style="color:var(--orange)">以下 ${data.defaultPasswordUsers.length} 个账号使用了默认密码 ${esc(data.defaultPassword||'123456')}</b>
+        <div style="margin-top:6px;color:var(--text2);word-break:break-all">${data.defaultPasswordUsers.map(esc).join('、')}</div>
+        <div style="margin-top:6px;color:var(--text3);font-size:11px">请尽快通知本人登录后修改密码。</div></div>`;
+    }
+    if(data.warnings&&data.warnings.length){
+      h+=`<div style="font-size:11px;color:var(--text2);margin-bottom:6px">${data.warningCount||data.warnings.length} 条提示（不影响已写入的数据）：</div>`;
+      h+='<table><thead><tr><th>工作表</th><th>行号</th><th>列</th><th>提示</th></tr></thead><tbody>'
+        +data.warnings.slice(0,50).map(w=>`<tr><td>${esc(w.sheet)}</td><td>${esc(w.row)}</td><td>${esc(w.column)}</td><td style="color:var(--orange)">${esc(w.message)}</td></tr>`).join('')
+        +'</tbody></table>';
+    }
+    if(!data.warnings||!data.warnings.length)h+='<div style="font-size:12px;color:var(--green)">全部数据处理完毕，无异常提示。</div>';
+    body.innerHTML=h;
+  }
+  document.getElementById('importModal').classList.add('show');
+}
 
 function refreshCurrent(){switchPage(currentPage)}
 

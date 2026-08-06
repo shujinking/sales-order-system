@@ -1,0 +1,136 @@
+%% 销售订单系统 — 增量变更 时序图
+%% 链路一：财务一步成交（变更2 / P0-3 P0-4 P0-5）
+
+sequenceDiagram
+    autonumber
+    actor F as 财务用户
+    participant UI as index.html<br/>page-finance-follow
+    participant M as dealModal<br/>(含利润输入)
+    participant API as server.js<br/>POST /api/orders/:id/deal
+    participant S as 存储层<br/>findById / updateItem
+    participant DB as CloudBase / data JSON
+
+    F->>UI: 打开「财务跟进」
+    UI->>API: GET /api/orders
+    API->>S: readAll('orders')
+    S->>DB: query
+    DB-->>S: orders[]
+    S-->>API: orders[]
+    API-->>UI: 过滤 visited/pending_visit
+    UI->>UI: loadFinanceFollow() 渲染<br/>pending_visit 与 visited 统一渲染「已成交/未成交」按钮<br/>行内新增「复制信息」按钮（visitModal 已下线）
+
+    F->>UI: 点击「已成交」
+    UI->>M: openDeal(oid) 弹出价格栏
+    M->>M: 展示 客户名 + 订单号<br/>活体 / 用品 / 利润 三输入
+    F->>M: 输入 活体=12800 用品=2400 利润=3600
+    M->>M: calcAmtTotal() 合计=15200（不含利润，只读）
+    F->>M: 点击「确认成交」
+    alt 利润为负数 (P1-7)
+        M->>F: confirm「利润为负，确认提交？」
+    end
+    M->>API: POST {dealStatus:'closed', liveAmount, supplyAmount, profit, note}
+
+    API->>S: findById('orders', id)
+    S-->>API: order
+    alt visitStatus 不在 [pending_visit, visited]
+        API-->>M: 400 未报单 / 客户未到店
+        M->>F: alert 错误提示
+    else dealStatus 已非 null
+        API-->>M: 400 已处理
+    else 校验通过
+        API->>API: visitStatus='visited'<br/>visitAt ||= now  (A11 不覆盖存量)<br/>dealStatus='closed'; dealAt=now<br/>dealLiveAmount / dealSupplyAmount<br/>dealProfit=profit  ★新增<br/>dealAmount=live+supply  (A9 不含利润)
+        API->>S: updateItem('orders', id, order)
+        S->>DB: update
+        DB-->>S: ok
+        S-->>API: ok
+        API-->>M: 200 {success:true, order}
+        M->>UI: closeM('dealModal'); refreshCurrent()
+        UI->>F: 订单移出待办，状态「已到店 + 已成交」
+    end
+
+%% 链路二：管理员 Excel 导入（变更5 / P0-11 P0-12，强制备份闸门）
+
+sequenceDiagram
+    autonumber
+    actor A as 管理员
+    participant UI as index.html<br/>dataMgrModal
+    participant MW as multer<br/>memoryStorage
+    participant API as server.js<br/>POST /api/import/xlsx
+    participant EX as excel.js<br/>parseImportWorkbook
+    participant S as 存储层<br/>readAllPaged / addItem
+    participant DB as CloudBase / data JSON
+
+    A->>UI: 看板 header 点「数据管理」
+    UI->>A: 展示 导出Excel / 下载模板 / 导入数据 / 备份JSON
+    A->>UI: 点「下载导入模板」
+    UI->>API: GET /api/import/template.xlsx
+    API->>EX: buildTemplateWorkbook()
+    EX-->>API: Buffer (用户/订单/填写说明 三Sheet)
+    API-->>UI: xlsx 文件流
+    A->>A: 线下填写数据
+
+    A->>UI: 点「备份全量JSON」（导入前置，用户 q-2 强制）
+    UI->>API: GET /api/export
+    API->>S: backupBeforeImport() → readAllPaged 三集合
+    S->>DB: query
+    API->>API: 写 data/backup/backup-<ts>.json
+    UI->>A: 提示「已备份，可执行导入」
+
+    A->>UI: 点「导入历史数据」→ 选择 .xlsx
+    UI->>A: confirm「导入为高危操作，已备份全量数据，确认写入历史数据？」
+    A->>UI: 确认
+    UI->>UI: 按钮置 loading，禁止重复提交
+    UI->>MW: POST multipart/form-data (file)
+
+    alt 文件 > 5MB 或非 xlsx
+        MW-->>UI: 400 {error:'文件超过5MB'} (MulterError 中间件转换)
+        UI->>A: 错误提示
+    else 通过
+        MW->>API: req.file.buffer
+        API->>API: 备份闸门校验<br/>data/backup/ 是否存在有效备份
+        alt 无有效备份（用户 q-2 强制）
+            API-->>UI: 400 {error:'请先下载全量JSON备份后再导入'}
+            UI->>A: 错误提示，引导先点「备份全量JSON」
+        else 有备份
+            API->>EX: parseImportWorkbook(buffer)
+            EX->>EX: 定位 用户/订单 Sheet<br/>按列名建映射(表头顺序无关)<br/>trim / 跳空行 / 电话去科学计数法<br/>中文状态反向映射<br/>逐行校验累计 errors[] warnings[]
+            EX-->>API: {users[], orders[], errors[], warnings[]}
+
+            alt errors.length > 0 或 行数 > 2000
+                API-->>UI: 400 {success:false, errors:[{sheet,row,column,message}]}
+                UI->>A: 结果弹窗：整体拒绝，逐行列出错误<br/>[下载明细] (P1-4)
+            else 校验全部通过
+                Note over API: 复用前置备份 backup-<ts>.json（由"备份全量JSON"按钮写入，闸门已校验存在）
+                API->>S: readAllPaged('users') 取存量去重集
+                S-->>API: existUsers[]
+                loop 每个待导入用户
+                    alt username 已存在
+                        API->>API: skipped++
+                    else 新用户
+                        API->>API: id='u'+ts+'_'+idx<br/>password 空则填 config.DEFAULT_IMPORT_PASSWORD (明文, A8/A14)
+                        API->>S: addItem('users', user)
+                        S->>DB: add
+                        API->>API: added++
+                    end
+                end
+
+                API->>S: readAllPaged('orders') 取存量去重集
+                S-->>API: existOrders[]
+                loop 每个待导入订单
+                    alt orderNo 已存在
+                        API->>API: skipped++
+                    else 新订单
+                        API->>API: id='ORD'+ts+'_'+idx (防同毫秒冲突)<br/>按 salesPersonName 匹配 user.name 取 salesPersonId<br/>匹配失败→warning, salesPersonId=''<br/>dealAmount = 活体+用品 (重算)<br/>时间按北京时区解析转 ISO
+                        API->>S: addItem('orders', order)
+                        Note over S,DB: ❗禁止 writeAll('orders')<br/>会先删后写且受1000条上限
+                        S->>DB: add
+                        API->>API: added++
+                    end
+                end
+
+                API-->>UI: 200 {users:{added,skipped}, orders:{added,skipped},<br/>warnings[], backupFile, defaultPasswordUsers[]}
+                UI->>A: 结果弹窗：✓用户 新增12/跳过3<br/>✓订单 新增486/跳过21<br/>⚠警告 7条  ✗失败 0条<br/>提示默认密码账号清单
+                UI->>UI: refreshCurrent() 刷新当前页数据
+            end
+        end
+    end

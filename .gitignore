@@ -1,5 +1,6 @@
 node_modules/
 data/*.json
-data-backup-*/
+data/backup/
+data-backup-/
 .env
 *.log

@@ -1,8 +1,11 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fsSync = require('fs');
+const multer = require('multer');
 const config = require('./config');
 const phoneCity = require('./phoneCity');
+const excel = require('./excel');
 
 const app = express();
 const PORT = process.env.PORT || config.port;
@@ -11,6 +14,36 @@ const SESSION_SECRET = process.env.SESSION_SECRET || config.sessionSecret;
 const FIXED_SOURCES = ['美团', '百度', '高德'];
 const FIXED_PRODUCTS = [];
 const SUGGESTION_THRESHOLD = 5;
+
+// ====== 时区工具（UTC+8 / Asia/Shanghai，无夏令时）======
+// 所有时间以 ISO 8601 UTC 落库；「今日」口径与 Excel 时间格式化一律走这里，
+// 绝不依赖容器本地时区（云托管默认 TZ=UTC，会导致北京时间 00:00-08:00 的数据被算到前一天）。
+const TZ_OFFSET_MS = excel.TZ_OFFSET_MS;
+/** 取 ISO 时间在北京时区的自然日，返回 'YYYY-MM-DD'；无效输入返回 ''。 */
+const bjDateKey = excel.bjDateKey;
+/** 格式化为北京时间 'YYYY-MM-DD HH:mm'；无效输入返回 ''。 */
+const fmtBJ = excel.fmtBJ;
+/** 把 'YYYY-MM-DD HH:mm'（北京时间）解析为 ISO UTC；空返回 null，非法返回 undefined。 */
+const parseBJ = excel.parseBJ;
+
+// ====== 成交流程常量 ======
+// Q2：成交流程合并为一步 —— pending_visit 可直接成交，成交即视为到店。
+const ALLOW_DEAL_FROM = ['pending_visit', 'visited'];
+
+// ====== 导入上传（multer 内存存储，不落盘）======
+const uploadXlsx = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => {
+    const name = String(file.originalname || '');
+    if (!/\.xlsx$/i.test(name)) {
+      const err = new Error('仅支持 .xlsx 格式');
+      err.code = 'INVALID_FILE_TYPE';
+      return cb(err);
+    }
+    cb(null, true);
+  },
+}).single('file');
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -279,6 +312,32 @@ async function readAll(name) {
   }
   const local = localFallback(name);
   return Array.isArray(local) ? [...local] : { ...local };
+}
+
+/**
+ * 全量读取集合，绕过 CloudBase 单次 1000 条上限（A7）。
+ * 本地模式直接委托 readAll；云端模式循环 skip/limit 分页直到取尽。
+ * 导出、导入去重校验、统计类接口一律使用本函数，严禁直接用 readAll。
+ * @param {string} name 集合名
+ * @returns {Promise<Array<object>|object>} 全量数据
+ */
+async function readAllPaged(name) {
+  if (!db || name === 'suggestions') return readAll(name);
+  const PAGE = 1000, MAX_PAGES = 100; // 安全上限 10 万条，防御死循环
+  const out = [];
+  try {
+    for (let p = 0; p < MAX_PAGES; p++) {
+      const res = await db.collection(name).skip(p * PAGE).limit(PAGE).get();
+      const rows = res.data || [];
+      out.push(...rows.map(i => (i.id ? i : { ...i, id: i._id })));
+      if (rows.length < PAGE) return out;
+    }
+    console.error('readAllPaged 触达安全上限 ' + (MAX_PAGES * PAGE) + ' 条，数据可能不完整: ' + name);
+    return out;
+  } catch (e) {
+    console.error('readAllPaged error (' + name + '): ' + e.message);
+    return readAll(name);
+  }
 }
 
 async function writeAll(name, data) {
@@ -601,17 +660,34 @@ app.post('/api/orders/:id/follow', requireAuth, requireRole('admin', 'sales'), a
   res.json({ success: true, order: o });
 });
 
+// 一步成交（变更 2 / P0-3 + P0-4）：
+//   - 放宽校验至 pending_visit | visited，pending_visit 可直接成交（成交即视为到店）
+//   - 成交时一次性写 visited + visitAt（A11：存量 visitAt 不覆盖）+ closed + dealAt + dealProfit
+//   - A9 铁律：dealAmount = 活体 + 用品，利润不参与合计
 app.post('/api/orders/:id/deal', requireAuth, requireRole('admin', 'finance'), async (req, res) => {
   const o = await findById('orders', req.params.id);
   if (!o) return res.status(404).json({ error: '不存在' });
-  if (o.visitStatus !== 'visited') return res.status(400).json({ error: '未到店' });
-  if (o.dealStatus !== null) return res.status(400).json({ error: '已处理' });
-  const { dealStatus, liveAmount, supplyAmount, note } = req.body; const now = new Date().toISOString();
+  if (!ALLOW_DEAL_FROM.includes(o.visitStatus)) {
+    return res.status(400).json({ error: o.visitStatus === 'not_visited' ? '客户未到店，不可成交' : '订单未报单，不可成交' });
+  }
+  if (o.dealStatus !== null && o.dealStatus !== undefined) return res.status(400).json({ error: '已处理' });
+  const { dealStatus, liveAmount, supplyAmount, profit, note } = req.body;
+  if (!['closed', 'not_closed'].includes(dealStatus)) return res.status(400).json({ error: '无效成交状态' });
+  const now = new Date().toISOString();
   o.dealStatus = dealStatus;
   if (dealStatus === 'closed') {
-    o.dealLiveAmount = liveAmount || 0; o.dealSupplyAmount = supplyAmount || 0;
-    o.dealAmount = (liveAmount || 0) + (supplyAmount || 0);
-  } else o.dealAmount = 0;
+    // Q2：成交即视为到店；A11：visitAt 已有值时不覆盖，保留原到店时间
+    o.visitStatus = 'visited';
+    if (!o.visitAt) o.visitAt = now;
+    const live = Number(liveAmount) || 0;
+    const supply = Number(supplyAmount) || 0;
+    o.dealLiveAmount = live;
+    o.dealSupplyAmount = supply;
+    o.dealProfit = Number(profit) || 0;      // 允许负数（亏损单）
+    o.dealAmount = live + supply;            // 合计不含利润
+  } else {
+    o.dealAmount = 0; o.dealLiveAmount = 0; o.dealSupplyAmount = 0;
+  }
   o.dealAt = now; o.dealNote = note || '';
   await updateItem('orders', req.params.id, o);
   res.json({ success: true, order: o });
@@ -619,7 +695,7 @@ app.post('/api/orders/:id/deal', requireAuth, requireRole('admin', 'finance'), a
 
 // Stats
 app.get('/api/stats', requireAuth, requireRole('admin'), async (req, res) => {
-  const orders = await readAll('orders'); const now = new Date();
+  const orders = await readAllPaged('orders'); const now = new Date();
   const isT = d => { const dt = new Date(d); return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth()&&dt.getDate()===now.getDate(); };
   const isW = d => { const dt=new Date(d); const day=now.getDay()||7; const mon=new Date(now); mon.setDate(now.getDate()-day+1); mon.setHours(0,0,0,0); return dt>=mon&&dt<=new Date(mon.getTime()+6*86400000); };
   const isM = d => { const dt=new Date(d); return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth(); };
@@ -630,14 +706,15 @@ app.get('/api/stats', requireAuth, requireRole('admin'), async (req, res) => {
     stats[p] = { total: f.length, visited: f.filter(o=>o.visitStatus==='visited').length, notVisited: f.filter(o=>o.visitStatus==='not_visited').length, closed: closed.length, notClosed: f.filter(o=>o.dealStatus==='not_closed').length, revenue: closed.reduce((s,o)=>s+(o.dealAmount||0),0), liveRevenue: closed.reduce((s,o)=>s+(o.dealLiveAmount||0),0), supplyRevenue: closed.reduce((s,o)=>s+(o.dealSupplyAmount||0),0) };
   });
   const trend = [];
-  for (let i=6;i>=0;i--) { const d=new Date(now); d.setDate(d.getDate()-i); const dayO=orders.filter(o=>{const od=new Date(o.createdAt);return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();}); const c=dayO.filter(o=>o.dealStatus==='closed'); trend.push({label:`${d.getMonth()+1}/${d.getDate()}`,orders:dayO.length,visited:dayO.filter(o=>o.visitStatus==='visited').length,closed:c.length,revenue:c.reduce((s,o)=>s+(o.dealAmount||0),0)}); }
+  for (let i=6;i>=0;i--) { const d=new Date(now); d.setDate(d.getDate()-i); const dayO=orders.filter(o=>{const od=new Date(o.createdAt);return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();}); const c=dayO.filter(o=>o.dealStatus==='closed'); trend.push({label:`${d.getMonth()+1}/${d.getDate()}`,orders:dayO.length,visited:dayO.filter(o=>o.visitStatus==='visited').length,closed:c.length,revenue:c.reduce((s,o)=>s+(o.dealLiveAmount||0),0)}); } // P0-1：趋势 revenue 改活体口径，与营收卡片对齐
   const sm = {};
   orders.forEach(o => { if(!sm[o.salesPersonId])sm[o.salesPersonId]={id:o.salesPersonId,name:o.salesPersonName,total:0,visited:0,closed:0,revenue:0,liveRevenue:0,supplyRevenue:0}; sm[o.salesPersonId].total++; if(o.visitStatus==='visited')sm[o.salesPersonId].visited++; if(o.dealStatus==='closed'){sm[o.salesPersonId].closed++;sm[o.salesPersonId].revenue+=(o.dealAmount||0);sm[o.salesPersonId].liveRevenue+=(o.dealLiveAmount||0);sm[o.salesPersonId].supplyRevenue+=(o.dealSupplyAmount||0);} });
-  res.json({ stats, trend, ranking: Object.values(sm).sort((a,b)=>b.revenue-a.revenue) });
+  // P0-2：排行排序键改活体口径，与前端金额列展示保持一致（revenue/supplyRevenue 字段仍保留返回）
+  res.json({ stats, trend, ranking: Object.values(sm).sort((a,b)=>b.liveRevenue-a.liveRevenue) });
 });
 
 app.get('/api/cityStats', requireAuth, requireRole('admin'), async (req, res) => {
-  const orders = await readAll('orders'); const map = {};
+  const orders = await readAllPaged('orders'); const map = {};
   orders.forEach(o => { const c = o.custCity || '未知'; if(!map[c])map[c]={city:c,orders:0,visited:0,closed:0}; map[c].orders++; if(o.visitStatus==='visited')map[c].visited++; if(o.dealStatus==='closed')map[c].closed++; });
   res.json({ cities: Object.values(map).sort((a,b)=>b.orders-a.orders) });
 });
@@ -645,11 +722,300 @@ app.get('/api/cityStats', requireAuth, requireRole('admin'), async (req, res) =>
 app.get('/api/export', requireAuth, requireRole('admin'), async (req, res) => {
   res.setHeader('Content-Type','application/json');
   res.setHeader('Content-Disposition','attachment; filename=export-'+new Date().toISOString().slice(0,10)+'.json');
-  res.json({ exportTime: new Date().toISOString(), orders: await readAll('orders'), users: await readAll('users'), suggestions: await readAll('suggestions') });
+  res.json({ exportTime: new Date().toISOString(), orders: await readAllPaged('orders'), users: await readAllPaged('users'), suggestions: await readAll('suggestions') });
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// ====== 地图大屏数据源（变更 3 / P0-6 + P0-7）======
+// 一个接口取代「cityStats + stats + 前端二次排序」的三段式；今日口径一律走 bjDateKey（北京时区）。
+app.get('/api/mapStats', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5, 1), 20);
+    const orders = await readAllPaged('orders');
+    const today = bjDateKey(new Date().toISOString());
+
+    const todayVisited = orders.filter(o => o.visitStatus === 'visited' && bjDateKey(o.visitAt) === today).length;
+    const todayClosed = orders.filter(o => o.dealStatus === 'closed' && bjDateKey(o.dealAt) === today).length;
+
+    const cm = {};
+    const sm = {};
+    orders.forEach(o => {
+      const c = o.custCity || '未知';
+      if (!cm[c]) cm[c] = { city: c, orders: 0, visited: 0, closed: 0 };
+      cm[c].orders++;
+      if (o.visitStatus === 'visited') cm[c].visited++;
+      if (o.dealStatus === 'closed') cm[c].closed++;
+
+      const k = o.salesPersonId || o.salesPersonName || '未知';
+      if (!sm[k]) sm[k] = { id: o.salesPersonId || '', name: o.salesPersonName || '未知', total: 0, visited: 0, closed: 0, liveRevenue: 0 };
+      sm[k].total++;
+      if (o.visitStatus === 'visited') sm[k].visited++;
+      if (o.dealStatus === 'closed') { sm[k].closed++; sm[k].liveRevenue += (o.dealLiveAmount || 0); }
+    });
+
+    res.json({
+      todayVisited,
+      todayClosed,
+      cityTop: Object.values(cm).sort((a, b) => b.orders - a.orders).slice(0, limit),
+      salesTop: Object.values(sm).sort((a, b) => b.total - a.total).slice(0, limit), // 按订单总数倒序（非金额）
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('mapStats error: ' + (e && e.stack ? e.stack : String(e)));
+    res.status(500).json({ error: '统计失败' });
+  }
+});
+
+// ====== Excel 导出 / 模板 / 导入 ======
+
+/**
+ * 按查询条件过滤导出订单。
+ * 日期按 createdAt 的北京自然日过滤（沿用旧实现口径，不按 dealAt，避免改变财务使用习惯）。
+ * @param {Array<object>} orders 订单数组
+ * @param {object} query Express req.query
+ * @returns {Array<object>} 过滤后的订单
+ */
+function applyExportFilters(orders, query) {
+  let list = orders;
+  const start = String(query.start || '').trim();
+  const end = String(query.end || '').trim();
+  const dealStatus = String(query.dealStatus || '').trim();
+  const salesPersonId = String(query.salesPersonId || '').trim();
+  if (start) list = list.filter(o => bjDateKey(o.createdAt) >= start);
+  if (end) list = list.filter(o => bjDateKey(o.createdAt) <= end);
+  if (dealStatus === 'pending') list = list.filter(o => o.dealStatus === null || o.dealStatus === undefined);
+  else if (dealStatus === 'closed' || dealStatus === 'not_closed') list = list.filter(o => o.dealStatus === dealStatus);
+  if (salesPersonId) list = list.filter(o => o.salesPersonId === salesPersonId);
+  return list;
+}
+
+/**
+ * 设置 xlsx 文件下载响应头（中文文件名按 RFC 5987 编码）。
+ * @param {object} res Express response
+ * @param {string} fileName 中文文件名（含扩展名）
+ * @param {string} asciiName ASCII 兜底文件名
+ * @returns {void}
+ */
+function setXlsxHeaders(res, fileName, asciiName) {
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition',
+    'attachment; filename="' + asciiName + '"; filename*=UTF-8\'\'' + encodeURIComponent(fileName));
+  res.setHeader('Cache-Control', 'no-store');
+}
+
+// 订单详单导出（P0-9）：admin + finance。
+// ★ 财务范围收敛为 visited|pending_visit，但**不过滤 dealStatus** —— 财务对账必须能导出已成交单。
+//   这与财务待办列表口径「故意不同」，切勿顺手对齐。
+app.get('/api/export/orders.xlsx', requireAuth, requireRole('admin', 'finance'), async (req, res) => {
+  try {
+    let orders = await readAllPaged('orders');
+    if (req.session.user.role === 'finance') {
+      orders = orders.filter(o => o.visitStatus === 'visited' || o.visitStatus === 'pending_visit');
+    }
+    orders = applyExportFilters(orders, req.query);
+    orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const buf = await excel.buildOrdersWorkbook(orders);
+    setXlsxHeaders(res, '订单详单-' + bjDateKey(new Date().toISOString()) + '.xlsx', 'orders.xlsx');
+    res.end(Buffer.from(buf));
+  } catch (e) {
+    console.error('export orders.xlsx error: ' + (e && e.stack ? e.stack : String(e)));
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
+// 导入模板下载（P0-11）：仅 admin
+app.get('/api/import/template.xlsx', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const buf = await excel.buildTemplateWorkbook();
+    setXlsxHeaders(res, '历史数据导入模板.xlsx', 'import-template.xlsx');
+    res.end(Buffer.from(buf));
+  } catch (e) {
+    console.error('export template.xlsx error: ' + (e && e.stack ? e.stack : String(e)));
+    res.status(500).json({ error: '模板生成失败' });
+  }
+});
+
+/**
+ * 导入写库前强制备份全量数据到 data/backup/backup-<ts>.json。
+ * 备份失败即中止导入（用户决策 3：强制备份才允许执行）。
+ * @returns {Promise<string>} 备份文件的相对路径
+ */
+async function backupBeforeImport() {
+  const dir = path.join(__dirname, 'data', 'backup');
+  if (!fsSync.existsSync(dir)) fsSync.mkdirSync(dir, { recursive: true });
+  const payload = {
+    exportTime: new Date().toISOString(),
+    orders: await readAllPaged('orders'),
+    users: await readAllPaged('users'),
+    suggestions: await readAll('suggestions'),
+  };
+  const file = 'backup-' + Date.now() + '.json';
+  fsSync.writeFileSync(path.join(dir, file), JSON.stringify(payload, null, 2), 'utf-8');
+  return 'data/backup/' + file;
+}
+
+/**
+ * 处理 multer 上传错误，统一转为 400 JSON（否则 Express 会返回 HTML 错误页）。
+ * @param {Error} err multer 抛出的错误
+ * @param {object} res Express response
+ * @returns {void}
+ */
+function handleUploadError(err, res) {
+  if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: '文件超过 5MB' });
+  if (err && err.code === 'INVALID_FILE_TYPE') return res.status(400).json({ error: '仅支持 .xlsx 格式' });
+  if (err && err.code === 'LIMIT_FILE_COUNT') return res.status(400).json({ error: '一次只能上传一个文件' });
+  console.error('upload error: ' + (err && err.stack ? err.stack : String(err)));
+  return res.status(400).json({ error: '文件上传失败' });
+}
+
+// 历史数据导入（P0-12）：仅 admin。两阶段 Validate-then-Write，写库前强制 JSON 备份。
+app.post('/api/import/xlsx', requireAuth, requireRole('admin'),
+  (req, res, next) => { uploadXlsx(req, res, (err) => (err ? handleUploadError(err, res) : next())); },
+  async (req, res) => {
+    try {
+      if (!req.file || !req.file.buffer || req.file.buffer.length === 0) {
+        return res.status(400).json({ error: '请选择要导入的文件' });
+      }
+
+      // ① 解析 + 全量校验（只读，不写库）
+      let parsed;
+      try {
+        parsed = await excel.parseImportWorkbook(req.file.buffer);
+      } catch (e) {
+        if (e && (e.code === 'PARSE_FAILED' || e.code === 'NO_SHEET')) {
+          return res.status(400).json({ success: false, error: e.message });
+        }
+        throw e;
+      }
+      if (parsed.errors.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: '文件校验未通过，未写入任何数据',
+          errors: parsed.errors.slice(0, 200),
+          errorCount: parsed.errors.length,
+        });
+      }
+      if (parsed.users.length === 0 && parsed.orders.length === 0) {
+        return res.status(400).json({ success: false, error: '文件中没有可导入的有效数据行' });
+      }
+
+      // ② 校验通过后、写库前强制备份（用户决策 3）
+      let backupFile = '';
+      try {
+        backupFile = await backupBeforeImport();
+      } catch (e) {
+        console.error('backupBeforeImport error: ' + (e && e.stack ? e.stack : String(e)));
+        return res.status(500).json({ success: false, error: '导入前备份失败，为保护数据已中止导入' });
+      }
+
+      const batchTs = Date.now();
+      const warnings = parsed.warnings.slice();
+      const defaultPasswordUsers = [];
+
+      // ③ 写用户：username 去重（库内已存在则跳过），addItem 逐条写，明文密码
+      const existUsers = await readAllPaged('users');
+      const userByName = new Map();
+      const existUsernames = new Set();
+      existUsers.forEach(u => { existUsernames.add(u.username); if (u.name) userByName.set(u.name, u); });
+
+      const userResult = { added: 0, skipped: 0, failed: 0 };
+      for (let i = 0; i < parsed.users.length; i++) {
+        const row = parsed.users[i];
+        if (existUsernames.has(row.username)) { userResult.skipped++; continue; }
+        const u = {
+          id: 'u' + batchTs + '_' + String(i).padStart(4, '0'),
+          username: row.username,
+          password: row.password,
+          role: row.role,
+          name: row.name,
+          phone: '',
+          createdAt: new Date().toISOString(),
+        };
+        try {
+          await addItem('users', u);
+          existUsernames.add(u.username);
+          if (u.name) userByName.set(u.name, u);
+          userResult.added++;
+          if (row.usedDefaultPassword) defaultPasswordUsers.push(u.username);
+        } catch (e) {
+          userResult.failed++;
+          warnings.push({ sheet: excel.SHEET_USERS, row: row._row, column: '账号', message: '写入失败：' + (e && e.message ? e.message : String(e)) });
+        }
+      }
+
+      // ④ 写订单：orderNo 去重，addItem 逐条写（严禁 writeAll）
+      const existOrders = await readAllPaged('orders');
+      const existOrderNos = new Set(existOrders.map(o => o.orderNo));
+      const orderResult = { added: 0, skipped: 0, failed: 0 };
+      const nowIso = new Date().toISOString();
+
+      for (let i = 0; i < parsed.orders.length; i++) {
+        const row = parsed.orders[i];
+        if (existOrderNos.has(row.orderNo)) { orderResult.skipped++; continue; }
+        const matched = row.salesPersonName ? userByName.get(row.salesPersonName) : null;
+        if (row.salesPersonName && !matched) {
+          warnings.push({ sheet: excel.SHEET_ORDERS, row: row._row, column: '销售人员', message: '销售人员「' + row.salesPersonName + '」未匹配到账号，已存为文本' });
+        }
+        const order = {
+          id: 'ORD' + batchTs + '_' + String(i).padStart(4, '0'),
+          orderNo: row.orderNo,
+          custName: row.custName,
+          custPhone: row.custPhone || '',
+          custCity: row.custCity || '',
+          custSource: row.custSource || '',
+          custProduct: row.custProduct || '',
+          storeAddress: row.storeAddress || '',
+          custNote: row.custNote || '',
+          salesPersonId: matched ? matched.id : '',
+          salesPersonName: row.salesPersonName || '',
+          visitStatus: row.visitStatus === undefined ? null : row.visitStatus,
+          visitAt: row.visitAt || null,
+          followCount: Number(row.followCount) || 0,
+          lastFollowAt: null,
+          followNote: null,
+          dealStatus: row.dealStatus === undefined ? null : row.dealStatus,
+          dealAmount: Number(row.dealAmount) || 0,
+          dealLiveAmount: Number(row.dealLiveAmount) || 0,
+          dealSupplyAmount: Number(row.dealSupplyAmount) || 0,
+          dealProfit: Number(row.dealProfit) || 0,
+          dealAt: row.dealAt || null,
+          dealNote: '',
+          createdAt: row.createdAt || nowIso,
+        };
+        try {
+          await addItem('orders', order);
+          existOrderNos.add(order.orderNo);
+          orderResult.added++;
+        } catch (e) {
+          orderResult.failed++;
+          warnings.push({ sheet: excel.SHEET_ORDERS, row: row._row, column: '订单编号', message: '写入失败：' + (e && e.message ? e.message : String(e)) });
+        }
+      }
+
+      res.json({
+        success: true,
+        backupFile,
+        users: userResult,
+        orders: orderResult,
+        warnings: warnings.slice(0, 200),
+        warningCount: warnings.length,
+        defaultPasswordUsers,
+        defaultPassword: excel.DEFAULT_IMPORT_PASSWORD,
+      });
+    } catch (e) {
+      console.error('import xlsx error: ' + (e && e.stack ? e.stack : String(e)));
+      res.status(500).json({ success: false, error: '导入失败' });
+    }
+  });
+
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
+
+// ============================================================
+// ⚠️ 所有 API 路由必须注册在本行以上！
+//    下方 app.get('*') 是 SPA 兜底，会吞掉其后注册的一切 GET 路由
+//    （Express 按注册顺序匹配，之后注册的 GET 永远命中不到，
+//     表现为「下载到的是 index.html 的 HTML 内容」）。
+// ============================================================
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ====== STARTUP ======
 // 先完成数据层初始化（含云库连通性验证），再开始监听端口，避免请求打在未就绪的数据层上。

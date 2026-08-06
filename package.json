@@ -1,0 +1,15 @@
+{
+  "name": "sales-order-system",
+  "version": "1.0.0",
+  "description": "云端销售订单管理系统",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "body-parser": "^1.20.2"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "销售订单管理系统",
+  "env": {
+    "SESSION_SECRET": {
+      "value": "sales-order-system-secret-key-2026"
+    }
+  }
+}

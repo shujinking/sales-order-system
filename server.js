@@ -236,6 +236,17 @@ app.delete('/api/users/:id', requireAuth, requireRole('admin'), async (req, res)
   res.json({ success: true });
 });
 
+// 修改自己密码
+app.put('/api/auth/password', requireAuth, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) return res.status(400).json({ error: '请填写新旧密码' });
+  const u = await findById('users', req.session.user.id);
+  if (!u || u.password !== oldPassword) return res.status(400).json({ error: '旧密码不正确' });
+  u.password = newPassword;
+  await updateItem('users', req.session.user.id, u);
+  res.json({ success: true });
+});
+
 // Orders
 app.get('/api/orders', requireAuth, async (req, res) => {
   let orders = await readAll('orders');

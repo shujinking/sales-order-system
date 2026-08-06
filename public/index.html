@@ -143,6 +143,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
     <div class="user-info">
       <div class="user-avatar" id="sAvatar"></div>
       <div><div class="user-name" id="sName"></div><div class="user-role" id="sRole"></div></div>
+      <span class="btn-logout" onclick="changePw()">改密</span>
       <span class="btn-logout" onclick="doLogout()">退出</span>
     </div>
   </aside>
@@ -189,7 +190,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
       <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>待确认成交（已到店客户）</h3><div class="search-row"><input type="date" id="fDateFrom" onchange="loadFinanceFollow()" style="width:130px"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="fDateTo" onchange="loadFinanceFollow()" style="width:130px"><button class="btn btn-sm btn-outline" onclick="downloadFinanceOrders()">下载列表</button></div></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>日期</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
 
       <!-- Accounts -->
-      <div class="page" id="page-accounts"><div class="section"><div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div><div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>电话</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div><div class="section-ft">财务账号不可删除，只能编辑</div></div></div>
+      <div class="page" id="page-accounts"><div class="section"><div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div><div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div><div class="section-ft">财务账号不可删除，只能编辑</div></div></div>
 
     </div>
     <div class="mob-nav" id="mobNav"></div>
@@ -199,7 +200,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <!-- Order Modal -->
 <div class="modal-overlay" id="orderModal"><div class="modal"><div class="modal-hd"><h3 id="modalTitle">新建订单</h3><button class="modal-close" onclick="closeM('orderModal')">&times;</button></div>
 <div class="modal-bd"><input type="hidden" id="editOid">
-<div class="fg"><label>客户姓名 *</label><input id="ocName" placeholder="请输入客户姓名"></div>
+<div class="fg"><label>客户姓名 *</label><div class="d-flex" style="margin-bottom:4px"><select id="ocGender" style="width:80px;padding:7px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px" onchange="onGenderChange()"><option value="">先生/女士</option><option value="先生">先生</option><option value="女士">女士</option></select><input id="ocName" placeholder="请输入客户姓名" style="flex:1"></div><div class="hint">不填姓名时自动使用先生/女士</div></div>
 <div class="fg"><label>联系电话 *</label><input id="ocPhone" placeholder="请输入联系电话" onblur="lookupCity()"></div>
 <div class="fg" style="display:flex;gap:10px">
   <div style="flex:1"><label>城市</label><input id="ocCity" placeholder="自动识别"><div class="hint" style="color:var(--accent)">电话输入后自动填入</div></div>
@@ -245,7 +246,6 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <div class="modal-bd"><input type="hidden" id="editUid">
 <div class="fg"><label>用户名 *</label><input id="uUser"></div>
 <div class="fg"><label>姓名 *</label><input id="uName"></div>
-<div class="fg"><label>电话</label><input id="uPhone"></div>
 <div class="fg"><label>密码 <span id="uPwLabel">*</span></label><input type="text" id="uPass"></div>
 </div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('userModal')">取消</button><button class="btn btn-primary" onclick="saveUser()">保存</button></div></div></div>
 
@@ -335,7 +335,7 @@ async function openOrderCreate(editId){
   document.getElementById('editOid').value=editId||'';
   if(editId){
     try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===editId);if(o){
-      document.getElementById('ocName').value=o.custName;document.getElementById('ocPhone').value=o.custPhone;
+      document.getElementById('ocName').value=o.custName;document.getElementById('ocGender').value='';document.getElementById('ocPhone').value=o.custPhone;
       document.getElementById('ocCity').value=o.custCity||'';
       setSelect('ocSource',o.custSource);setSelect('ocProduct',o.custProduct);setSelect('ocStore',o.storeAddress);
       document.getElementById('ocNote').value=o.custNote||'';
@@ -343,7 +343,7 @@ async function openOrderCreate(editId){
       loadStores(o.custCity);
     }}catch(e){}
   }else{
-    document.getElementById('ocName').value='';document.getElementById('ocPhone').value='';document.getElementById('ocCity').value='';
+    document.getElementById('ocGender').value='';document.getElementById('ocName').value='';document.getElementById('ocPhone').value='';document.getElementById('ocCity').value='';
     document.getElementById('ocSource').value='美团';document.getElementById('ocProduct').value='__other__';document.getElementById('ocStore').value='__other__';
     document.getElementById('ocNote').value='预计多久到：\n大概报价：';
     document.getElementById('ocSourceCustom').value='';document.getElementById('ocProductCustom').value='';document.getElementById('ocStoreCustom').value='';
@@ -357,8 +357,12 @@ function setSelect(id,val){
   s.value='__other__';document.getElementById(id+'Custom').value=val||'';
 }
 async function saveOrder(){
-  const custName=document.getElementById('ocName').value.trim(),custPhone=document.getElementById('ocPhone').value.trim();
-  if(!custName||!custPhone){alert('请填写客户姓名和联系电话');return}
+  const gender=document.getElementById('ocGender').value;
+  let custName=document.getElementById('ocName').value.trim();
+  if(!custName&&gender)custName=gender;
+  const custPhone=document.getElementById('ocPhone').value.trim();
+  if(!custPhone){alert('请填写联系电话');return}
+  if(!custName){alert('请填写客户姓名或选择先生/女士');return}
   const data={custName,custPhone,custCity:document.getElementById('ocCity').value.trim(),custSource:gv('ocSource','ocSource'),storeAddress:gv('ocStore','ocStore'),custProduct:gv('ocProduct','ocProduct'),custNote:document.getElementById('ocNote').value.trim()};
   const eid=document.getElementById('editOid').value;
   try{await api(eid?'PUT':'POST',eid?'/api/orders/'+eid:'/api/orders',data);closeM('orderModal');refreshCurrent()}catch(e){alert('保存失败')}
@@ -489,10 +493,10 @@ function downloadFinanceOrders(){
 }
 
 // Users
-async function loadUsers(){if(me.role!=='admin')return;try{const r=await api('GET','/api/users');document.getElementById('usersTbl').innerHTML=r.users.map(u=>`<tr><td>${u.username}</td><td>${u.name}</td><td>${u.phone||'-'}</td><td><span class="role-tag ${u.role==='admin'?'role-admin':u.role==='sales'?'role-sales':'role-finance'}">${u.role==='admin'?'管理员':u.role==='sales'?'销售':'财务'}</span></td><td style="font-size:11px">${u.createdAt?fmt(u.createdAt):'-'}</td><td><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="openUserEdit('${u.id}')">编辑</button>${u.role==='admin'?'<span style="font-size:11px;color:var(--text3)">不可删除</span>':'<button class="btn btn-sm btn-danger" onclick="delUser(\''+u.id+'\',\''+u.username+'\')">删除</button>'}</div></td></tr>`).join('')}catch(e){}}
-function openUserCreate(){document.getElementById('userModalTitle').textContent='新建销售账号';document.getElementById('editUid').value='';document.getElementById('uUser').value='';document.getElementById('uName').value='';document.getElementById('uPhone').value='';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=false;document.getElementById('uPwLabel').textContent='*';document.getElementById('userModal').classList.add('show')}
-async function openUserEdit(id){try{const r=await api('GET','/api/users');const u=r.users.find(x=>x.id===id);if(!u)return;document.getElementById('userModalTitle').textContent='编辑账号';document.getElementById('editUid').value=id;document.getElementById('uUser').value=u.username;document.getElementById('uName').value=u.name;document.getElementById('uPhone').value=u.phone||'';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=true;document.getElementById('uPwLabel').textContent='(留空则不修改)';document.getElementById('userModal').classList.add('show')}catch(e){}}
-async function saveUser(){const id=document.getElementById('editUid').value,username=document.getElementById('uUser').value.trim(),name=document.getElementById('uName').value.trim(),phone=document.getElementById('uPhone').value.trim(),password=document.getElementById('uPass').value.trim();if(!id&&(!username||!password||!name)){alert('请填写完整信息');return}try{if(id)await api('PUT','/api/users/'+id,{name,phone,password:password||undefined});else await api('POST','/api/users',{username,password,name,phone});closeM('userModal');loadUsers()}catch(e){alert('操作失败')}}
+async function loadUsers(){if(me.role!=='admin')return;try{const r=await api('GET','/api/users');document.getElementById('usersTbl').innerHTML=r.users.map(u=>`<tr><td>${u.username}</td><td>${u.name}</td><td><span class="role-tag ${u.role==='admin'?'role-admin':u.role==='sales'?'role-sales':'role-finance'}">${u.role==='admin'?'管理员':u.role==='sales'?'销售':'财务'}</span></td><td style="font-size:11px">${u.createdAt?fmt(u.createdAt):'-'}</td><td><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="openUserEdit('${u.id}')">编辑</button>${u.role==='admin'?'<span style="font-size:11px;color:var(--text3)">不可删除</span>':'<button class="btn btn-sm btn-danger" onclick="delUser(\''+u.id+'\',\''+u.username+'\')">删除</button>'}</div></td></tr>`).join('')}catch(e){}}
+function openUserCreate(){document.getElementById('userModalTitle').textContent='新建销售账号';document.getElementById('editUid').value='';document.getElementById('uUser').value='';document.getElementById('uName').value='';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=false;document.getElementById('uPwLabel').textContent='*';document.getElementById('userModal').classList.add('show')}
+async function openUserEdit(id){try{const r=await api('GET','/api/users');const u=r.users.find(x=>x.id===id);if(!u)return;document.getElementById('userModalTitle').textContent='编辑账号';document.getElementById('editUid').value=id;document.getElementById('uUser').value=u.username;document.getElementById('uName').value=u.name;document.getElementById('uPass').value='';document.getElementById('uUser').disabled=true;document.getElementById('uPwLabel').textContent='(留空不修改)';document.getElementById('userModal').classList.add('show')}catch(e){}}
+async function saveUser(){const id=document.getElementById('editUid').value,username=document.getElementById('uUser').value.trim(),name=document.getElementById('uName').value.trim(),password=document.getElementById('uPass').value.trim();if(!id&&(!username||!password||!name)){alert('请填写完整信息');return}try{if(id)await api('PUT','/api/users/'+id,{name,password:password||undefined});else await api('POST','/api/users',{username,password,name});closeM('userModal');loadUsers()}catch(e){alert('操作失败')}}
 async function delUser(id,name){if(!confirm(`确定删除"${name}"？`))return;try{await api('DELETE','/api/users/'+id);loadUsers()}catch(e){alert('删除失败')}}
 
 async function exportData(){try{const r=await fetch('/api/export',{credentials:'same-origin'});const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sales-export.json';a.click()}catch(e){}}
@@ -504,6 +508,12 @@ document.addEventListener('click',e=>{
   if(e.target.classList.contains('tab')&&e.target.closest('#dashTabs')){document.querySelectorAll('#dashTabs .tab').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');loadDashboard(e.target.dataset.period)}
   if(e.target.dataset.maptype){document.querySelectorAll('[data-maptype]').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');loadCityMap(e.target.dataset.maptype)}
 });
+
+// Gender
+function onGenderChange(){document.getElementById('ocName').placeholder=document.getElementById('ocGender').value}
+
+// Password change
+async function changePw(){const oldPw=prompt('请输入旧密码');if(!oldPw)return;const newPw=prompt('请输入新密码');if(!newPw)return;try{await api('PUT','/api/auth/password',{oldPassword:oldPw,newPassword:newPw});alert('密码修改成功')}catch(e){alert('修改失败，请检查旧密码')}}
 
 // Init
 document.getElementById('dashTabs').innerHTML='<button class="tab active" data-period="today">今日</button><button class="tab" data-period="week">本周</button><button class="tab" data-period="month">本月</button>';

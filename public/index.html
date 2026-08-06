@@ -168,9 +168,9 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 
       <!-- City Map -->
       <div class="page" id="page-citymap">
-        <div class="section"><div class="section-hd"><h3>城市数据看板</h3><div class="tabs" style="margin:0"><button class="tab active" data-maptype="orders">订单量</button><button class="tab" data-maptype="visited">到店</button><button class="tab" data-maptype="closed">成交</button></div></div>
+        <div class="section"><div class="section-hd"><h3>城市数据看板</h3><div class="tabs" style="margin:0"><button class="tab active" data-maptype="orders">订单量</button><button class="tab" data-maptype="visited">到店</button><button class="tab" data-maptype="closed">成交</button></div><button class="btn btn-sm btn-outline" onclick="toggleFullscreen()">全屏</button></div>
         <div class="section-bd"><div class="map-container" id="mapChart"></div></div>
-        <div class="section-ft">气泡大小代表数量，点击标签切换视图</div></div>
+        <div class="section-ft">点击「全屏」或地图区域进入全屏模式，按 ESC 退出</div></div>
         <div class="section">
           <div class="section-hd"><h3>城市排行</h3></div>
           <div class="section-bd"><table><thead><tr><th>排名</th><th>城市</th><th>订单</th><th>到店</th><th>成交</th></tr></thead><tbody id="cityRankTbl"></tbody></table></div>
@@ -418,33 +418,19 @@ async function loadDashboard(period){
 }
 
 // City map
-let mapChart=null;
+let mapChart=null,mapFullscreen=false;
+function toggleFullscreen(){const d=document.getElementById('mapChart');if(!mapFullscreen){d.style.position='fixed';d.style.inset='0';d.style.zIndex='200';d.style.width='100vw';d.style.height='100vh';mapFullscreen=true}else{exitFullscreen()}}
+function exitFullscreen(){const d=document.getElementById('mapChart');d.style.position='';d.style.inset='';d.style.zIndex='';d.style.width='100%';d.style.height='400px';mapFullscreen=false;if(mapChart)mapChart.resize()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&mapFullscreen)exitFullscreen()});
 async function loadCityMap(type){
   if(type)mapType=type;
-  try{const r=await api('GET','/api/cityStats');
-  const chartDom=document.getElementById('mapChart');
-  if(!mapChart){mapChart=echarts.init(chartDom);if(window.chinaGeo){echarts.registerMap('china',window.chinaGeo);}}
-  const cities=r.cities||[];const key=mapType;const title={orders:'订单量',visited:'到店数',closed:'成交数'}[key];
+  try{const r=await api('GET','/api/cityStats');const dom=document.getElementById('mapChart');
+  if(!mapChart){mapChart=echarts.init(dom);mapChart.on('click',()=>{if(!mapFullscreen)toggleFullscreen()})}
+  const cities=r.cities||[];const key=mapType,titleN={orders:'订单量',visited:'到店数',closed:'成交数'}[key];
   const maxV=Math.max(...cities.map(c=>c[key]||0),1);
-  const mapData=cities.map(c=>({name:c.city,value:c[key]}));
-  if(window.chinaGeo){
-    mapChart.setOption({
-      title:{text:'城市' + title + '分布',left:'center',top:8,textStyle:{fontSize:13,color:'#9498a8'}},
-      tooltip:{trigger:'item',formatter:'{b}<br/>'+title+': {c}'},
-      visualMap:{min:0,max:maxV,text:['高','低'],realtime:false,calculable:true,inRange:{color:['#1a3a6a','#2a5aa0','#4f7cf7','#6b91ff','#a0c4ff']},textStyle:{color:'#9498a8'}},
-      geo:{map:'china',roam:true,itemStyle:{areaColor:'#1a1d28',borderColor:'#333'},label:{show:false},emphasis:{itemStyle:{areaColor:'#2a3a5a'}}},
-      series:[{name:title,type:'map',map:'china',geoIndex:0,data:mapData}]
-    },true);
-  }else{
-    mapChart.setOption({
-      title:{text:'城市' + title + '分布',left:'center',top:8,textStyle:{fontSize:13,color:'#9498a8'}},
-      tooltip:{formatter:p=>'<b>'+p.name+'</b><br/>'+title+': '+p.value[2]},
-      xAxis:{type:'category',data:cities.map(c=>c.city),axisLabel:{fontSize:10,color:'#9498a8'},axisLine:{lineStyle:{color:'#2a2d3a'}}},
-      yAxis:{type:'value',axisLabel:{fontSize:10,color:'#9498a8'},splitLine:{lineStyle:{color:'#2a2d3a',type:'dashed'}}},
-      series:[{type:'scatter',symbolSize:d=>Math.max(d[2]/maxV*60+8,10),data:cities.map(c=>[c.city,c[key],c[key]]),itemStyle:{color:'#4f7cf7',opacity:.7},label:{show:true,formatter:p=>p.value[2],fontSize:11,color:'#e1e4ed'}}],
-      grid:{top:50,right:20,bottom:40,left:50}
-    },true);
-  }
+  if(window.chinaGeo){echarts.registerMap('china',window.chinaGeo);const nameMap={};window.chinaGeo.features.forEach(f=>{const n=f.properties.name;nameMap[n.replace(/市|省|自治区|壮族|回族|维吾尔/g,'')]=n;nameMap[n]=n});
+  const mapData=cities.map(c=>{const cn=nameMap[c.city]||(c.city+'市');return{name:cn,value:c[key]}});
+  mapChart.setOption({title:{text:'',left:'center',top:5,textStyle:{fontSize:13,color:'#9498a8'}},tooltip:{trigger:'item',formatter:p=>p.name.replace(/市$/,'')+'<br/>'+titleN+': '+(p.value||0)},visualMap:{min:0,max:maxV||1,text:['高','低'],realtime:false,calculable:true,inRange:{color:['#1a1d28','#1a3a6a','#2a5aa0','#4f7cf7','#6b91ff']},textStyle:{color:'#9498a8'},left:'left',bottom:10},geo:{map:'china',roam:true,itemStyle:{areaColor:'#222533',borderColor:'#3a3d4a'},label:{show:false},emphasis:{itemStyle:{areaColor:'#2a3a5a'},label:{show:true,color:'#fff'}}},series:[{name:titleN,type:'map',map:'china',geoIndex:0,data:mapData}]},true)}else{mapChart.setOption({tooltip:{formatter:p=>'<b>'+p.name+'</b><br/>'+titleN+': '+p.value[2]},xAxis:{type:'category',data:cities.map(c=>c.city),axisLabel:{fontSize:10,color:'#9498a8'}},yAxis:{type:'value',splitLine:{lineStyle:{color:'#2a2d3a',type:'dashed'}}},series:[{type:'scatter',symbolSize:d=>Math.max(d[2]/maxV*60+8,10),data:cities.map(c=>[c.city,c[key]||0,c[key]||0]),itemStyle:{color:'#4f7cf7',opacity:.7},label:{show:true,formatter:p=>p.value[2],fontSize:11,color:'#e1e4ed'}}]},true)}
   document.getElementById('cityRankTbl').innerHTML=cities.length?cities.map((c,i)=>`<tr><td>#${i+1}</td><td>${c.city}</td><td>${c.orders}</td><td>${c.visited}</td><td style="color:var(--green);font-weight:600">${c.closed}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">暂无数据</td></tr>';
   }catch(e){}
 }

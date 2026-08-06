@@ -1,8 +1,11 @@
-{
-  "name": "销售订单管理系统",
-  "env": {
-    "SESSION_SECRET": {
-      "value": "sales-order-system-secret-key-2026"
-    }
-  }
-}
+services:
+  - type: web
+    name: sales-order-system
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: SESSION_SECRET
+        value: sales-order-system-secret-key-2026

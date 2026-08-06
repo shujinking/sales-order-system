@@ -220,10 +220,12 @@ app.post('/api/users', requireAuth, requireRole('admin'), async (req, res) => {
   res.json({ success: true });
 });
 app.put('/api/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
-  const { name, phone, password } = req.body;
+  const { username, name, password } = req.body;
   const u = await findById('users', req.params.id);
   if (!u) return res.status(404).json({ error: '不存在' });
-  const up = {}; if (name) u.name = name; if (phone !== undefined) u.phone = phone; if (password) u.password = password;
+  if (username && u.role !== 'admin') u.username = username;
+  if (name) u.name = name;
+  if (password) u.password = password;
   await updateItem('users', req.params.id, u);
   res.json({ success: true });
 });

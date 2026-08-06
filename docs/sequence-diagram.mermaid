@@ -48,7 +48,7 @@ sequenceDiagram
         UI->>F: 订单移出待办，状态「已到店 + 已成交」
     end
 
-%% 链路二：管理员 Excel 导入（变更5 / P0-11 P0-12，强制备份闸门）
+%% 链路二：管理员 Excel 导入（变更5 / P0-11 P0-12，写时强制备份）
 
 sequenceDiagram
     autonumber
@@ -69,15 +69,15 @@ sequenceDiagram
     API-->>UI: xlsx 文件流
     A->>A: 线下填写数据
 
-    A->>UI: 点「备份全量JSON」（导入前置，用户 q-2 强制）
+    A->>UI: 点「备份全量JSON」（可选本地额外备份，非导入前置）
     UI->>API: GET /api/export
     API->>S: backupBeforeImport() → readAllPaged 三集合
     S->>DB: query
     API->>API: 写 data/backup/backup-<ts>.json
-    UI->>A: 提示「已备份，可执行导入」
+    UI->>A: 提示「已生成本地备份」
 
     A->>UI: 点「导入历史数据」→ 选择 .xlsx
-    UI->>A: confirm「导入为高危操作，已备份全量数据，确认写入历史数据？」
+    UI->>A: confirm「导入为高危操作，系统将先自动生成回滚快照，确认写入历史数据？」
     A->>UI: 确认
     UI->>UI: 按钮置 loading，禁止重复提交
     UI->>MW: POST multipart/form-data (file)
@@ -87,11 +87,11 @@ sequenceDiagram
         UI->>A: 错误提示
     else 通过
         MW->>API: req.file.buffer
-        API->>API: 备份闸门校验<br/>data/backup/ 是否存在有效备份
-        alt 无有效备份（用户 q-2 强制）
-            API-->>UI: 400 {error:'请先下载全量JSON备份后再导入'}
-            UI->>A: 错误提示，引导先点「备份全量JSON」
-        else 有备份
+        API->>API: 写时强制备份<br/>backupBeforeImport() 写 data/backup/backup-<ts>.json
+        alt 备份写入失败
+            API-->>UI: 500 {error:'导入前备份失败，为保护数据已中止导入'}
+            UI->>A: 错误提示，零写入
+        else 备份成功
             API->>EX: parseImportWorkbook(buffer)
             EX->>EX: 定位 用户/订单 Sheet<br/>按列名建映射(表头顺序无关)<br/>trim / 跳空行 / 电话去科学计数法<br/>中文状态反向映射<br/>逐行校验累计 errors[] warnings[]
             EX-->>API: {users[], orders[], errors[], warnings[]}
@@ -100,7 +100,7 @@ sequenceDiagram
                 API-->>UI: 400 {success:false, errors:[{sheet,row,column,message}]}
                 UI->>A: 结果弹窗：整体拒绝，逐行列出错误<br/>[下载明细] (P1-4)
             else 校验全部通过
-                Note over API: 复用前置备份 backup-<ts>.json（由"备份全量JSON"按钮写入，闸门已校验存在）
+                Note over API: 复用本次写时生成的备份 backup-<ts>.json（内部步骤，无需前端事先备份）
                 API->>S: readAllPaged('users') 取存量去重集
                 S-->>API: existUsers[]
                 loop 每个待导入用户

@@ -218,28 +218,27 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <div class="fg"><label>到店状态</label><select id="fVisit"><option value="">暂不更新</option><option value="visited">已到店</option><option value="not_visited">未到店</option></select></div>
 </div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('followModal')">取消</button><button class="btn btn-primary" onclick="saveFollow()">保存跟进</button></div></div></div>
 
+<!-- Finance Visit Modal -->
+<div class="modal-overlay" id="visitModal"><div class="modal"><div class="modal-hd"><h3>确认到店 - <span id="vcName"></span></h3><button class="modal-close" onclick="closeM('visitModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="vOid">
+<div class="fg"><label>到店状态</label><select id="vStatus"><option value="visited">已到店</option><option value="not_visited">未到店</option></select></div>
+<div class="copy-preview" id="vCopyPreview" style="display:none;margin-top:10px"></div>
+</div>
+<div class="modal-ft" style="justify-content:space-between"><button class="copy-btn" onclick="copyVisitInfo()">复制订单信息</button><div style="display:flex;gap:8px"><button class="btn btn-outline" onclick="closeM('visitModal')">取消</button><button class="btn btn-primary" onclick="saveVisit()">确认</button></div></div></div></div>
+
 <!-- Deal Modal -->
-<div class="modal-overlay" id="dealModal"><div class="modal" style="width:540px"><div class="modal-hd"><h3>确认成交 - <span id="dcName"></span></h3><button class="modal-close" onclick="closeM('dealModal')">&times;</button></div>
+<div class="modal-overlay" id="dealModal"><div class="modal"><div class="modal-hd"><h3>确认成交 - <span id="dcName"></span></h3><button class="modal-close" onclick="closeM('dealModal')">&times;</button></div>
 <div class="modal-bd"><input type="hidden" id="dOid">
 <div class="fg"><label>成交状态</label><select id="dStatus" onchange="toggleAmtSplit()"><option value="closed">已成交</option><option value="not_closed">未成交</option></select></div>
-<div class="fg"><label>是否到店</label><select id="dVisit"></select></div>
 <div id="dAmtSplit" class="amt-split">
   <h4>成交金额明细</h4>
   <div class="amt-row"><label>活体售卖</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dLiveAmt" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
   <div class="amt-row"><label>用品金额</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dSupplyAmt" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
-  <div class="amt-row"><label>利润</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dProfit" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
   <div class="amt-total"><span>合计</span><strong id="dAmtTotal">¥0</strong></div>
 </div>
 <div class="fg"><label>备注</label><textarea id="dNote" placeholder="成交备注..."></textarea></div>
-<div class="copy-preview" id="copyPreview"></div>
 </div>
-<div class="modal-ft" style="justify-content:space-between">
-  <button class="copy-btn" onclick="copyOrderInfo()">复制订单信息</button>
-  <div style="display:flex;gap:8px">
-    <button class="btn btn-outline" onclick="closeM('dealModal')">取消</button>
-    <button class="btn btn-primary" onclick="saveDeal()">确认提交</button>
-  </div>
-</div></div></div>
+<div class="modal-ft"><button class="btn btn-outline" onclick="closeM('dealModal')">取消</button><button class="btn btn-primary" onclick="saveDeal()">确认提交</button></div></div></div>
 
 <!-- User Modal -->
 <div class="modal-overlay" id="userModal"><div class="modal"><div class="modal-hd"><h3 id="userModalTitle">新建销售账号</h3><button class="modal-close" onclick="closeM('userModal')">&times;</button></div>
@@ -371,24 +370,16 @@ async function reportOrder(oid){try{const r=await api('GET','/api/orders');const
 async function openFollow(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('fOid').value=oid;document.getElementById('fcName').textContent=o.custName;document.getElementById('fNote').value='';document.getElementById('fVisit').value='';document.getElementById('followModal').classList.add('show')}catch(e){}}
 async function saveFollow(){try{await api('POST','/api/orders/'+document.getElementById('fOid').value+'/follow',{note:document.getElementById('fNote').value.trim(),visitStatus:document.getElementById('fVisit').value||null});closeM('followModal');refreshCurrent()}catch(e){alert('操作失败')}}
 
+// Finance visit confirmation
+async function openVisit(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('vOid').value=oid;document.getElementById('vcName').textContent=o.custName;document.getElementById('vStatus').value='visited';document.getElementById('vCopyPreview').style.display='none';document.getElementById('visitModal').classList.add('show')}catch(e){}}
+async function saveVisit(){const oid=document.getElementById('vOid').value;const vs=document.getElementById('vStatus').value;try{await api('POST','/api/orders/'+oid+'/visit',{visitStatus:vs});closeM('visitModal');refreshCurrent()}catch(e){alert('操作失败')}}
+async function copyVisitInfo(){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===document.getElementById('vOid').value);if(!o)return;const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【位置】：'+(o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');await navigator.clipboard.writeText(text);const p=document.getElementById('vCopyPreview');p.textContent=text.replace(/\n/g,'\n');p.style.display='block'}catch(e){alert('复制失败')}}
+
 // Deal
 function toggleAmtSplit(){document.getElementById('dAmtSplit').style.display=document.getElementById('dStatus').value==='closed'?'block':'none'}
-function calcAmtTotal(){const l=parseFloat(document.getElementById('dLiveAmt').value)||0,s=parseFloat(document.getElementById('dSupplyAmt').value)||0,p=parseFloat(document.getElementById('dProfit').value)||0;document.getElementById('dAmtTotal').textContent='¥'+(l+s+p).toFixed(2)}
-async function openDeal(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('dOid').value=oid;document.getElementById('dcName').textContent=o.custName;
-  document.getElementById('dStatus').value='closed';
-  document.getElementById('dLiveAmt').value='';document.getElementById('dSupplyAmt').value='';document.getElementById('dProfit').value='';document.getElementById('dNote').value='';
-  document.getElementById('dAmtSplit').style.display='block';calcAmtTotal();
-  document.getElementById('copyPreview').style.display='none';
-  // Visit status dropdown
-  const vs=document.getElementById('dVisit');vs.innerHTML='';
-  if(o.visitStatus==='pending_visit'){vs.innerHTML='<option value="visited">已到店</option><option value="not_visited">未到店</option>';vs.parentElement.style.display='block'}
-  else{vs.innerHTML='';vs.parentElement.style.display='none'}
-  document.getElementById('dealModal').classList.add('show')}catch(e){}}
-async function saveDeal(){const dealStatus=document.getElementById('dStatus').value,liveAmount=parseFloat(document.getElementById('dLiveAmt').value)||0,supplyAmount=parseFloat(document.getElementById('dSupplyAmt').value)||0,profit=parseFloat(document.getElementById('dProfit').value)||0,note=document.getElementById('dNote').value.trim();const oid=document.getElementById('dOid').value;if(dealStatus==='closed'&&liveAmount+supplyAmount+profit<=0){alert('请输入成交金额');return}
-  try{
-    const v=document.getElementById('dVisit');const vs=v.value;if(vs){await api('POST','/api/orders/'+oid+'/visit',{visitStatus:vs});}
-    await api('POST','/api/orders/'+oid+'/deal',{dealStatus,liveAmount,supplyAmount,profit,note});
-    closeM('dealModal');refreshCurrent()}catch(e){alert('操作失败')}}
+function calcAmtTotal(){const l=parseFloat(document.getElementById('dLiveAmt').value)||0,s=parseFloat(document.getElementById('dSupplyAmt').value)||0;document.getElementById('dAmtTotal').textContent='¥'+(l+s).toFixed(2)}
+async function openDeal(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('dOid').value=oid;document.getElementById('dcName').textContent=o.custName;document.getElementById('dStatus').value='closed';document.getElementById('dLiveAmt').value='';document.getElementById('dSupplyAmt').value='';document.getElementById('dNote').value='';document.getElementById('dAmtSplit').style.display='block';calcAmtTotal();document.getElementById('dealModal').classList.add('show')}catch(e){}}
+async function saveDeal(){const dealStatus=document.getElementById('dStatus').value,liveAmount=parseFloat(document.getElementById('dLiveAmt').value)||0,supplyAmount=parseFloat(document.getElementById('dSupplyAmt').value)||0,note=document.getElementById('dNote').value.trim();const oid=document.getElementById('dOid').value;if(dealStatus==='closed'&&liveAmount+supplyAmount<=0){alert('请输入成交金额');return}try{await api('POST','/api/orders/'+oid+'/deal',{dealStatus,liveAmount,supplyAmount,note});closeM('dealModal');refreshCurrent()}catch(e){alert('操作失败')}}
 
 // Copy order info
 async function copyOrderInfo(){
@@ -412,8 +403,7 @@ async function loadDashboard(period){
     <div class="stat-card c4"><div class="stat-label">成交金额</div><div class="stat-value">${fm(d.revenue)}</div><div class="stat-sub">客单价 ${d.closed?fm(d.revenue/d.closed):'-'}</div></div>`;
   document.getElementById('amtStatGrid').innerHTML=`
     <div class="stat-card"><div class="stat-label">活体售卖</div><div class="stat-value" style="color:var(--accent)">${fm(d.liveRevenue||0)}</div></div>
-    <div class="stat-card"><div class="stat-label">用品金额</div><div class="stat-value" style="color:var(--green)">${fm(d.supplyRevenue||0)}</div></div>
-    <div class="stat-card"><div class="stat-label">利润</div><div class="stat-value" style="color:var(--orange)">${fm(d.profit||0)}</div></div>`;
+    <div class="stat-card"><div class="stat-label">用品金额</div><div class="stat-value" style="color:var(--green)">${fm(d.supplyRevenue||0)}</div></div>`;
   const maxT=Math.max(...r.trend.map(x=>x.orders),1);
   document.getElementById('trendChart').innerHTML=r.trend.map(x=>`<div class="bar-item"><div class="bar-val">${x.orders}</div><div class="bar" style="height:${Math.max(x.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${x.label}</div></div>`).join('');
   const sc={'新建':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'跟进中':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'已到店':d.visited-d.closed-d.notClosed,'未到店':d.notVisited,'已成交':d.closed,'未成交':d.notClosed};
@@ -481,18 +471,19 @@ async function loadSalesFollow(){
 async function loadFinanceFollow(){
   try{const r=await api('GET','/api/orders');
   let orders=r.orders.filter(o=>(o.visitStatus==='visited'||o.visitStatus==='pending_visit')&&o.dealStatus===null);
-  // Date filter
   const df=document.getElementById('fDateFrom').value,dt=document.getElementById('fDateTo').value;
   if(df)orders=orders.filter(o=>o.createdAt.slice(0,10)>=df);
   if(dt)orders=orders.filter(o=>o.createdAt.slice(0,10)<=dt);
-  const vb=v=>v==='visited'?'已到店':v==='pending_visit'?'即将到店':'待确认';
-  document.getElementById('financeTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openDeal('${o.id}')">确认成交</button></td></tr>`).join(''):'<tr><td colspan="10" class="empty">暂无订单</td></tr>';
+  const vb=v=>v==='visited'?'<span class="badge b-visited">已到店</span>':v==='pending_visit'?'<span class="badge b-follow">即将到店</span>':'<span class="badge b-pending">待确认</span>';
+  document.getElementById('financeTbl').innerHTML=orders.length?orders.map(o=>{
+    const btn=o.visitStatus==='pending_visit'?`<button class="btn btn-sm btn-primary" onclick="openVisit('${o.id}')">确认到店</button>`:`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">确认成交</button>`;
+    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td>${btn}</td></tr>`}).join(''):'<tr><td colspan="10" class="empty">暂无订单</td></tr>';
   document.getElementById('financeCount').textContent=`共 ${orders.length} 条`;}catch(e){}
 }
 
 function downloadFinanceOrders(){
   const rows=[],tbl=document.getElementById('financeTbl');
-  tbl.querySelectorAll('tr').forEach(tr=>{if(tr.querySelector('.empty'))return;const r=[];tr.querySelectorAll('td').forEach(td=>{if(!td.querySelector('button'))r.push(td.textContent.trim())});if(r.length)rows.push(r.join(','))});
+  tbl.querySelectorAll('tr').forEach(tr=>{if(tr.querySelector('.empty'))return;const r=[];tr.querySelectorAll('td').forEach(td=>{if(!td.querySelector('button'))r.push('"'+td.textContent.trim()+'"')});if(r.length)rows.push(r.join(','))});
   const csv='订单号,日期,客户,电话,城市,到店,销售,店铺,备注\n'+rows.join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\ufeff'+encodeURIComponent(csv);a.download='订单列表-'+new Date().toISOString().slice(0,10)+'.csv';a.click()
 }

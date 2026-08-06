@@ -330,11 +330,11 @@ app.post('/api/orders/:id/deal', requireAuth, requireRole('admin', 'finance'), a
   if (!o) return res.status(404).json({ error: '不存在' });
   if (o.visitStatus !== 'visited') return res.status(400).json({ error: '未到店' });
   if (o.dealStatus !== null) return res.status(400).json({ error: '已处理' });
-  const { dealStatus, liveAmount, supplyAmount, profit, note } = req.body; const now = new Date().toISOString();
+  const { dealStatus, liveAmount, supplyAmount, note } = req.body; const now = new Date().toISOString();
   o.dealStatus = dealStatus;
   if (dealStatus === 'closed') {
-    o.dealLiveAmount = liveAmount || 0; o.dealSupplyAmount = supplyAmount || 0; o.dealProfit = profit || 0;
-    o.dealAmount = (liveAmount || 0) + (supplyAmount || 0) + (profit || 0);
+    o.dealLiveAmount = liveAmount || 0; o.dealSupplyAmount = supplyAmount || 0;
+    o.dealAmount = (liveAmount || 0) + (supplyAmount || 0);
   } else o.dealAmount = 0;
   o.dealAt = now; o.dealNote = note || '';
   await updateItem('orders', req.params.id, o);
@@ -351,12 +351,12 @@ app.get('/api/stats', requireAuth, requireRole('admin'), async (req, res) => {
   ['today','week','month','all'].forEach(p => {
     let f = p==='today'?orders.filter(o=>isT(o.createdAt)):p==='week'?orders.filter(o=>isW(o.createdAt)):p==='month'?orders.filter(o=>isM(o.createdAt)):orders;
     const closed = f.filter(o=>o.dealStatus==='closed');
-    stats[p] = { total: f.length, visited: f.filter(o=>o.visitStatus==='visited').length, notVisited: f.filter(o=>o.visitStatus==='not_visited').length, closed: closed.length, notClosed: f.filter(o=>o.dealStatus==='not_closed').length, revenue: closed.reduce((s,o)=>s+(o.dealAmount||0),0), liveRevenue: closed.reduce((s,o)=>s+(o.dealLiveAmount||0),0), supplyRevenue: closed.reduce((s,o)=>s+(o.dealSupplyAmount||0),0), profit: closed.reduce((s,o)=>s+(o.dealProfit||0),0) };
+    stats[p] = { total: f.length, visited: f.filter(o=>o.visitStatus==='visited').length, notVisited: f.filter(o=>o.visitStatus==='not_visited').length, closed: closed.length, notClosed: f.filter(o=>o.dealStatus==='not_closed').length, revenue: closed.reduce((s,o)=>s+(o.dealAmount||0),0), liveRevenue: closed.reduce((s,o)=>s+(o.dealLiveAmount||0),0), supplyRevenue: closed.reduce((s,o)=>s+(o.dealSupplyAmount||0),0) };
   });
   const trend = [];
   for (let i=6;i>=0;i--) { const d=new Date(now); d.setDate(d.getDate()-i); const dayO=orders.filter(o=>{const od=new Date(o.createdAt);return od.getFullYear()===d.getFullYear()&&od.getMonth()===d.getMonth()&&od.getDate()===d.getDate();}); const c=dayO.filter(o=>o.dealStatus==='closed'); trend.push({label:`${d.getMonth()+1}/${d.getDate()}`,orders:dayO.length,visited:dayO.filter(o=>o.visitStatus==='visited').length,closed:c.length,revenue:c.reduce((s,o)=>s+(o.dealAmount||0),0)}); }
   const sm = {};
-  orders.forEach(o => { if(!sm[o.salesPersonId])sm[o.salesPersonId]={id:o.salesPersonId,name:o.salesPersonName,total:0,visited:0,closed:0,revenue:0,liveRevenue:0,supplyRevenue:0,profit:0}; sm[o.salesPersonId].total++; if(o.visitStatus==='visited')sm[o.salesPersonId].visited++; if(o.dealStatus==='closed'){sm[o.salesPersonId].closed++;sm[o.salesPersonId].revenue+=(o.dealAmount||0);sm[o.salesPersonId].liveRevenue+=(o.dealLiveAmount||0);sm[o.salesPersonId].supplyRevenue+=(o.dealSupplyAmount||0);sm[o.salesPersonId].profit+=(o.dealProfit||0);} });
+  orders.forEach(o => { if(!sm[o.salesPersonId])sm[o.salesPersonId]={id:o.salesPersonId,name:o.salesPersonName,total:0,visited:0,closed:0,revenue:0,liveRevenue:0,supplyRevenue:0}; sm[o.salesPersonId].total++; if(o.visitStatus==='visited')sm[o.salesPersonId].visited++; if(o.dealStatus==='closed'){sm[o.salesPersonId].closed++;sm[o.salesPersonId].revenue+=(o.dealAmount||0);sm[o.salesPersonId].liveRevenue+=(o.dealLiveAmount||0);sm[o.salesPersonId].supplyRevenue+=(o.dealSupplyAmount||0);} });
   res.json({ stats, trend, ranking: Object.values(sm).sort((a,b)=>b.revenue-a.revenue) });
 });
 

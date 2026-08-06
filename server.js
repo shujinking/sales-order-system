@@ -296,8 +296,6 @@ app.put('/api/orders/:id', requireAuth, async (req, res) => {
   res.json({ success: true, order: o });
 });
 
-app.post('/api/orders/:id/follow', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
-
 // Sales 一键报单：设置即将到店
 app.post('/api/orders/:id/report', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
   const o = await findById('orders', req.params.id);

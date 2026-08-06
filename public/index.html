@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>销售订单管理系统</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
 :root{--bg:#0f1117;--surface:#1a1d28;--surface2:#222533;--border:#2a2d3a;--text:#e1e4ed;--text2:#9498a8;--text3:#5f6375;--accent:#4f7cf7;--accent2:#6b91ff;--green:#22c55e;--green-bg:rgba(34,197,94,.12);--red:#ef4444;--red-bg:rgba(239,68,68,.12);--orange:#f59e0b;--orange-bg:rgba(245,158,11,.12);--blue:#3b82f6;--blue-bg:rgba(59,130,246,.12);--purple:#a855f7;--purple-bg:rgba(168,85,247,.12);--r:10px;--rs:6px}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
 .app{display:flex;min-height:100vh}
-/* ===== SIDEBAR ===== */
-.sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;flex-shrink:0;position:fixed;left:0;top:0;bottom:0;z-index:10}
+/* Sidebar */
+.sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;flex-shrink:0;position:fixed;left:0;top:0;bottom:0;z-index:10;overflow-y:auto}
 .logo{padding:0 16px 16px;font-size:17px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px}
 .nav-item{padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);transition:all .15s;border-left:3px solid transparent}
 .nav-item:hover{background:var(--surface2);color:var(--text)}
@@ -19,150 +20,115 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .nav-item.active svg{opacity:1}
 .user-info{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
 .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
-.user-name{font-size:12px}
-.user-role{font-size:10px;color:var(--text2)}
-/* ===== MAIN ===== */
+.user-name{font-size:12px}.user-role{font-size:10px;color:var(--text2)}
+/* Main */
 .main{margin-left:210px;flex:1;display:flex;flex-direction:column;overflow:hidden}
 .header{padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;justify-content:space-between;align-items:center}
 .header h1{font-size:17px;font-weight:600}
 .header-actions{display:flex;gap:8px;align-items:center}
 .btn{padding:8px 16px;border-radius:var(--rs);font-size:13px;cursor:pointer;border:none;font-weight:500;transition:all .15s;white-space:nowrap;min-height:36px}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover{background:var(--accent2)}
-.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border)}
-.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent2)}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border)}.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
 .btn-sm{padding:5px 10px;font-size:11px;min-height:28px}
-.btn-success{background:var(--green);color:#fff}
-.btn-danger{background:var(--red);color:#fff}
+.btn-success{background:var(--green);color:#fff}.btn-danger{background:var(--red);color:#fff}
 .btn-warning{background:var(--orange);color:#000}
 .btn-logout{color:var(--red);font-size:11px;cursor:pointer;margin-left:8px}
 .content{flex:1;padding:20px;overflow-y:auto}
-/* ===== PAGE ===== */
-.page{display:none}
-.page.active{display:block}
-/* ===== LOGIN ===== */
+/* Page */
+.page{display:none}.page.active{display:block}
+/* Login */
 .login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:var(--bg)}
 .login-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:32px 28px;width:100%;max-width:360px}
 .login-box h2{text-align:center;font-size:19px;margin-bottom:4px}
 .login-box .sub{text-align:center;font-size:12px;color:var(--text2);margin-bottom:22px}
-.fg{margin-bottom:14px}
-.fg label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px}
+.fg{margin-bottom:14px}.fg label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px}
 .fg input,.fg select,.fg textarea{width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px;outline:none;transition:border-color .15s}
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent)}
-.fg textarea{resize:vertical;min-height:55px}
-.fg .hint{font-size:10px;color:var(--text3);margin-top:3px}
-/* ===== STATS ===== */
+.fg textarea{resize:vertical;min-height:55px}.fg .hint{font-size:10px;color:var(--text3);margin-top:3px}
+/* Stats */
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
-.stat-label{font-size:12px;color:var(--text2);margin-bottom:4px}
-.stat-value{font-size:26px;font-weight:700}
-.stat-sub{font-size:11px;color:var(--text2);margin-top:2px}
-.stat-card.c1 .stat-value{color:var(--accent)}
-.stat-card.c2 .stat-value{color:var(--green)}
-.stat-card.c3 .stat-value{color:var(--purple)}
-.stat-card.c4 .stat-value{color:var(--orange)}
-/* ===== TABS ===== */
+.stat-label{font-size:12px;color:var(--text2)}.stat-value{font-size:26px;font-weight:700}.stat-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.stat-card.c1 .stat-value{color:var(--accent)}.stat-card.c2 .stat-value{color:var(--green)}.stat-card.c3 .stat-value{color:var(--purple)}.stat-card.c4 .stat-value{color:var(--orange)}
+/* Tabs */
 .tabs{display:flex;gap:4px;background:var(--surface2);border-radius:var(--rs);padding:3px;margin-bottom:16px;width:fit-content}
-.tab{padding:6px 16px;border-radius:4px;cursor:pointer;font-size:12px;border:none;background:transparent;color:var(--text2)}
-.tab.active{background:var(--accent);color:#fff}
-/* ===== SECTION ===== */
+.tab{padding:6px 16px;border-radius:4px;cursor:pointer;font-size:12px;border:none;background:transparent;color:var(--text2)}.tab.active{background:var(--accent);color:#fff}
+/* Section */
 .section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px}
 .section-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}
-.section-hd h3{font-size:14px;font-weight:600}
-.section-bd{padding:0}
-.section-ft{padding:8px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)}
-/* ===== TABLE ===== */
+.section-hd h3{font-size:14px;font-weight:600}.section-bd{padding:0}.section-ft{padding:8px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)}
+/* Table */
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{text-align:left;padding:9px 12px;color:var(--text2);font-weight:500;font-size:11px;border-bottom:1px solid var(--border);background:var(--surface2);white-space:nowrap}
-td{padding:10px 12px;border-bottom:1px solid var(--border)}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(79,124,247,.03)}
-/* ===== BADGES ===== */
+td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{border-bottom:none}tr:hover td{background:rgba(79,124,247,.03)}
+/* Badges */
 .badge{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
-.b-new{background:var(--blue-bg);color:var(--blue)}
-.b-follow{background:var(--orange-bg);color:var(--orange)}
-.b-visited{background:var(--green-bg);color:var(--green)}
-.b-nvisit{background:var(--red-bg);color:var(--red)}
-.b-closed{background:var(--green-bg);color:var(--green)}
-.b-nclosed{background:var(--red-bg);color:var(--red)}
+.b-new{background:var(--blue-bg);color:var(--blue)}.b-follow{background:var(--orange-bg);color:var(--orange)}.b-visited{background:var(--green-bg);color:var(--green)}
+.b-nvisit{background:var(--red-bg);color:var(--red)}.b-closed{background:var(--green-bg);color:var(--green)}.b-nclosed{background:var(--red-bg);color:var(--red)}
 .b-pending{background:var(--purple-bg);color:var(--purple)}
-/* ===== MODAL ===== */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100;display:none}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
 .modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);width:480px;max-width:95vw;max-height:85vh;overflow-y:auto}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);width:520px;max-width:95vw;max-height:85vh;overflow-y:auto}
 .modal-hd{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.modal-hd h3{font-size:15px}
-.modal-close{cursor:pointer;font-size:20px;color:var(--text2);background:none;border:none;line-height:1}
-.modal-bd{padding:18px}
-.modal-ft{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
-/* ===== CHARTS ===== */
+.modal-hd h3{font-size:15px}.modal-close{cursor:pointer;font-size:20px;color:var(--text2);background:none;border:none;line-height:1}
+.modal-bd{padding:18px}.modal-ft{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+/* Charts */
 .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
 .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px}
 .chart-box h3{font-size:13px;color:var(--text2);margin-bottom:14px}
 .bar-chart{display:flex;align-items:flex-end;gap:8px;min-height:120px}
 .bar-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
-.bar{width:100%;max-width:36px;border-radius:4px 4px 0 0;min-height:3px;transition:height .4s}
-.bar-val{font-size:10px;color:var(--text);font-weight:600}
-.bar-label{font-size:10px;color:var(--text3)}
+.bar{width:100%;max-width:36px;border-radius:4px 4px 0 0;min-height:3px}
+.bar-val{font-size:10px;color:var(--text);font-weight:600}.bar-label{font-size:10px;color:var(--text3)}
 .amt{font-weight:600;color:var(--green)}
-/* ===== SEARCH ===== */
+/* Search */
 .search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .search-row input{flex:1;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;min-width:140px}
 .search-row select{padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px}
-/* ===== SMART DROPDOWN ===== */
-.smart-select-wrap{position:relative}
-.smart-select{appearance:none;cursor:pointer}
-.smart-hint{font-size:10px;color:var(--text3);margin-top:3px}
-.smart-input{margin-top:6px}
-/* ===== EMPTY ===== */
+/* Map */
+.map-container{width:100%;height:400px;margin-bottom:16px}
+/* Split amount */
+.amt-split{border:1px solid var(--accent);border-radius:8px;padding:12px;background:rgba(79,124,247,.05)}
+.amt-split h4{font-size:12px;color:var(--accent);margin-bottom:10px}
+.amt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.amt-row label{font-size:11px;color:var(--text2);white-space:nowrap;width:70px;flex-shrink:0}
+.amt-row input{flex:1;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px;text-align:right}
+.amt-total{display:flex;justify-content:space-between;border-top:0.5px solid var(--border);padding-top:8px;font-size:13px}
+.amt-total span{color:var(--text2)}.amt-total strong{color:var(--green)}
+/* Copy */
+.copy-btn{padding:6px 14px;border:1px solid var(--green);border-radius:var(--rs);background:var(--green-bg);color:var(--green);font-size:12px;cursor:pointer;font-weight:500}
+.copy-btn:hover{opacity:.8}
+.copy-preview{background:var(--surface2);border-radius:var(--rs);padding:10px;font-size:11px;line-height:1.7;font-family:monospace;color:var(--accent);margin-top:10px;display:none}
+.amt-sub{font-size:10px;color:var(--text3);margin-top:2px}
 .empty{padding:36px;text-align:center;color:var(--text2);font-size:13px}
-/* ===== MOBILE ===== */
+.d-flex{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.role-tag{padding:2px 8px;border-radius:20px;font-size:10px}.role-sales{background:var(--blue-bg);color:var(--blue)}.role-finance{background:var(--red-bg);color:var(--red)}.role-admin{background:var(--purple-bg);color:var(--purple)}
+/* Mobile */
 @media (max-width:768px){
-  .sidebar{display:none}
-  .main{margin-left:0}
-  .header{padding:10px 14px}
-  .header h1{font-size:15px}
-  .content{padding:12px}
-  .stat-grid{grid-template-columns:repeat(2,1fr)}
-  .chart-row{grid-template-columns:1fr}
-  .login-box{margin:0 auto}
-  .modal{width:95vw}
-  .btn{padding:7px 12px;font-size:12px;min-height:32px}
-  .btn-sm{padding:4px 8px;font-size:10px;min-height:26px}
-  table{font-size:11px}
-  th,td{padding:7px 8px}
-  /* Mobile bottom nav */
+  .sidebar{display:none}.main{margin-left:0}.header{padding:10px 14px}.header h1{font-size:15px}.content{padding:12px}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}.chart-row{grid-template-columns:1fr}.map-container{height:280px}
   .mob-nav{display:flex!important;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:20;justify-content:space-around;padding:6px 0;padding-bottom:env(safe-area-inset-bottom,6px)}
   .mob-nav .mob-item{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--text2);cursor:pointer;padding:4px 8px}
   .mob-nav .mob-item.active{color:var(--accent)}
   .mob-nav .mob-item svg{width:18px;height:18px}
+  table{font-size:11px}th,td{padding:7px 8px}
 }
-@media (min-width:769px){
-  .mob-nav{display:none!important}
-}
-/* ===== BADGE COLORS MISC ===== */
-.role-tag{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500}
-.role-sales{background:var(--blue-bg);color:var(--blue)}
-.role-finance{background:var(--red-bg);color:var(--red)}
-.role-admin{background:var(--purple-bg);color:var(--purple)}
-.d-flex{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+@media (min-width:769px){.mob-nav{display:none!important}}
 </style>
 </head>
 <body>
 
-<!-- ===== LOGIN PAGE ===== -->
 <div class="login-page" id="loginPage" style="display:none">
   <div class="login-box">
-    <h2>销售订单管理系统</h2>
-    <div class="sub">登录你的账号开始工作</div>
-    <div class="fg"><label>账号</label><input id="loginUser" placeholder="输入用户名" autocomplete="username"></div>
-    <div class="fg"><label>密码</label><input type="password" id="loginPass" placeholder="输入密码" autocomplete="current-password"></div>
+    <h2>销售订单管理系统</h2><div class="sub">登录你的账号开始工作</div>
+    <div class="fg"><label>账号</label><input id="loginUser" placeholder="输入用户名"></div>
+    <div class="fg"><label>密码</label><input type="password" id="loginPass" placeholder="输入密码"></div>
     <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">登 录</button>
     <div id="loginError" style="color:var(--red);font-size:12px;margin-top:10px;text-align:center;display:none"></div>
   </div>
 </div>
 
-<!-- ===== MAIN APP ===== -->
 <div class="app" id="mainApp" style="display:none">
   <aside class="sidebar">
     <div class="logo">销售订单管理</div>
@@ -173,740 +139,330 @@ tr:hover td{background:rgba(79,124,247,.03)}
       <span class="btn-logout" onclick="doLogout()">退出</span>
     </div>
   </aside>
-
   <div class="main">
-    <div class="header">
-      <h1 id="pageTitle"></h1>
-      <div class="header-actions" id="headerActions"></div>
-    </div>
+    <div class="header"><h1 id="pageTitle"></h1><div class="header-actions" id="headerActions"></div></div>
     <div class="content">
+
       <!-- Dashboard -->
       <div class="page" id="page-dashboard">
-        <div class="tabs" id="dashTabs">
-          <button class="tab active" data-period="today">今日</button>
-          <button class="tab" data-period="week">本周</button>
-          <button class="tab" data-period="month">本月</button>
-        </div>
+        <div class="tabs" id="dashTabs"></div>
         <div class="stat-grid" id="statGrid"></div>
         <div class="chart-row">
           <div class="chart-box"><h3>近7天订单趋势</h3><div class="bar-chart" id="trendChart"></div></div>
           <div class="chart-box"><h3>订单状态分布</h3><div class="bar-chart" id="statusChart"></div></div>
         </div>
+        <div class="stat-grid" id="amtStatGrid" style="grid-template-columns:repeat(3,1fr)"></div>
         <div class="section">
           <div class="section-hd"><h3>销售排行（本月）</h3></div>
           <div class="section-bd"><table><thead><tr><th>排名</th><th>销售</th><th>订单</th><th>到店</th><th>成交</th><th>金额</th><th>转化率</th></tr></thead><tbody id="rankTbl"></tbody></table></div>
         </div>
       </div>
 
+      <!-- City Map -->
+      <div class="page" id="page-citymap">
+        <div class="section"><div class="section-hd"><h3>城市数据看板</h3><div class="tabs" style="margin:0"><button class="tab active" data-maptype="orders">订单量</button><button class="tab" data-maptype="visited">到店</button><button class="tab" data-maptype="closed">成交</button></div></div>
+        <div class="section-bd"><div class="map-container" id="mapChart"></div></div>
+        <div class="section-ft">气泡大小代表数量，点击标签切换视图</div></div>
+        <div class="section">
+          <div class="section-hd"><h3>城市排行</h3></div>
+          <div class="section-bd"><table><thead><tr><th>排名</th><th>城市</th><th>订单</th><th>到店</th><th>成交</th></tr></thead><tbody id="cityRankTbl"></tbody></table></div>
+        </div>
+      </div>
+
       <!-- Orders -->
       <div class="page" id="page-orders">
-        <div class="section">
-          <div class="section-hd">
-            <h3 id="ordersTitle">全部订单</h3>
-            <div class="search-row">
-              <select id="filterStatus" onchange="loadOrders()">
-                <option value="all">全部</option><option value="new">新建</option><option value="follow">跟进中</option><option value="visited">已到店</option><option value="not_visited">未到店</option><option value="closed">已成交</option><option value="not_closed">未成交</option>
-              </select>
-              <input id="searchOrder" placeholder="搜索客户/订单号..." oninput="loadOrders()">
-            </div>
-          </div>
-          <div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>来源</th><th>产品</th><th>销售</th><th>创建</th><th>到店</th><th>成交</th><th>金额</th><th>操作</th></tr></thead><tbody id="ordersTbl"></tbody></table></div>
-          <div class="section-ft" id="ordersCount"></div>
-        </div>
+        <div class="section"><div class="section-hd"><h3 id="ordersTitle">全部订单</h3><div class="search-row"><select id="filterStatus" onchange="loadOrders()"><option value="all">全部</option><option value="new">新建</option><option value="follow">跟进中</option><option value="visited">已到店</option><option value="not_visited">未到店</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select><input id="searchOrder" placeholder="搜索客户/订单号..." oninput="loadOrders()"></div></div>
+        <div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>来源</th><th>产品</th><th>销售</th><th>店铺</th><th>到店</th><th>成交</th><th>金额</th><th>操作</th></tr></thead><tbody id="ordersTbl"></tbody></table></div><div class="section-ft" id="ordersCount"></div></div>
       </div>
 
       <!-- Sales Follow -->
-      <div class="page" id="page-sales-follow">
-        <div class="section">
-          <div class="section-hd"><h3>待跟进订单</h3></div>
-          <div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>来源</th><th>创建</th><th>跟进次数</th><th>最后跟进</th><th>操作</th></tr></thead><tbody id="salesFollowTbl"></tbody></table></div>
-          <div class="section-ft" id="salesFollowCount"></div>
-        </div>
-      </div>
+      <div class="page" id="page-sales-follow"><div class="section"><div class="section-hd"><h3>待跟进订单</h3></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>来源</th><th>创建</th><th>跟进次数</th><th>最后跟进</th><th>操作</th></tr></thead><tbody id="salesFollowTbl"></tbody></table></div><div class="section-ft" id="salesFollowCount"></div></div></div>
 
-      <!-- Finance Deal -->
-      <div class="page" id="page-finance-follow">
-        <div class="section">
-          <div class="section-hd"><h3>待确认成交（已到店客户）</h3></div>
-          <div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>到店时间</th><th>销售</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div>
-          <div class="section-ft" id="financeCount"></div>
-        </div>
-      </div>
+      <!-- Finance -->
+      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>待确认成交（已到店客户）</h3></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
 
-      <!-- Account Management -->
-      <div class="page" id="page-accounts">
-        <div class="section">
-          <div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div>
-          <div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>电话</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div>
-          <div class="section-ft">财务账号不可删除，只能编辑</div>
-        </div>
-      </div>
+      <!-- Accounts -->
+      <div class="page" id="page-accounts"><div class="section"><div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div><div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>电话</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div><div class="section-ft">财务账号不可删除，只能编辑</div></div></div>
+
     </div>
-
-    <!-- Mobile Bottom Nav -->
     <div class="mob-nav" id="mobNav"></div>
   </div>
 </div>
 
-<!-- ===== MODALS ===== -->
-<!-- Order Create/Edit Modal -->
-<div class="modal-overlay" id="orderModal">
-  <div class="modal">
-    <div class="modal-hd"><h3 id="modalTitle">新建订单</h3><button class="modal-close" onclick="closeM('orderModal')">&times;</button></div>
-    <div class="modal-bd">
-      <input type="hidden" id="editOid">
-      <div class="fg"><label>客户姓名 *</label><input id="ocName" placeholder="请输入客户姓名"></div>
-      <div class="fg"><label>联系电话 *</label><input id="ocPhone" placeholder="请输入联系电话"></div>
-      <div class="fg">
-        <label>客资来源</label>
-        <div class="smart-select-wrap">
-          <select class="smart-select" id="ocSource" onchange="onSourceChange()" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px">
-            <option value="美团">美团</option><option value="百度">百度</option><option value="高德">高德</option><option value="__other__">其他（手动输入）</option>
-          </select>
-          <input class="smart-input" id="ocSourceCustom" placeholder="输入客资来源" style="display:none;width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px">
-        </div>
-        <div class="smart-hint" id="sourceHint">3固定预设 + 选"其他"自由输入</div>
-      </div>
-      <div class="fg">
-        <label>意向产品</label>
-        <div class="smart-select-wrap">
-          <select class="smart-select" id="ocProduct" onchange="onProductChange()" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px">
-            <option value="__other__">其他（手动输入）</option>
-          </select>
-          <input class="smart-input" id="ocProductCustom" placeholder="输入意向产品" style="display:none;width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px">
-        </div>
-        <div class="smart-hint" id="productHint">多次输入同一产品名后自动成为备选项</div>
-      </div>
-      <div class="fg"><label>备注</label><textarea id="ocNote" placeholder="客户备注..."></textarea></div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" onclick="closeM('orderModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveOrder()">保存</button>
-    </div>
-  </div>
+<!-- Order Modal -->
+<div class="modal-overlay" id="orderModal"><div class="modal"><div class="modal-hd"><h3 id="modalTitle">新建订单</h3><button class="modal-close" onclick="closeM('orderModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="editOid">
+<div class="fg"><label>客户姓名 *</label><input id="ocName" placeholder="请输入客户姓名"></div>
+<div class="fg"><label>联系电话 *</label><input id="ocPhone" placeholder="请输入联系电话" onblur="lookupCity()"></div>
+<div class="fg" style="display:flex;gap:10px">
+  <div style="flex:1"><label>城市</label><input id="ocCity" placeholder="自动识别"><div class="hint" style="color:var(--accent)">电话输入后自动填入</div></div>
+  <div style="flex:1"><label>客资来源</label><select id="ocSource" onchange="onSourceChange()"><option value="美团">美团</option><option value="百度">百度</option><option value="高德">高德</option><option value="__other__">其他</option></select><input id="ocSourceCustom" placeholder="输入来源" style="display:none;margin-top:6px"></div>
 </div>
+<div class="fg"><label>归属店铺地址</label><select id="ocStore" onchange="onStoreChange()"><option value="__other__">其他（手动输入）</option></select><input id="ocStoreCustom" placeholder="输入店铺地址" style="display:none;margin-top:6px"></div>
+<div class="fg"><label>意向产品</label><select id="ocProduct" onchange="onProductChange()"><option value="__other__">其他</option></select><input id="ocProductCustom" placeholder="输入意向产品" style="display:none;margin-top:6px"></div>
+<div class="fg"><label>备注信息</label><textarea id="ocNote" placeholder="预计多久到：&#10;大概报价："></textarea></div>
+</div>
+<div class="modal-ft"><button class="btn btn-outline" onclick="closeM('orderModal')">取消</button><button class="btn btn-primary" onclick="saveOrder()">保存</button></div></div></div>
 
 <!-- Follow Modal -->
-<div class="modal-overlay" id="followModal">
-  <div class="modal">
-    <div class="modal-hd"><h3>销售跟进 - <span id="fcName"></span></h3><button class="modal-close" onclick="closeM('followModal')">&times;</button></div>
-    <div class="modal-bd">
-      <input type="hidden" id="fOid">
-      <div class="fg"><label>跟进备注</label><textarea id="fNote" placeholder="记录跟进内容..."></textarea></div>
-      <div class="fg"><label>到店状态</label>
-        <select id="fVisit" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px">
-          <option value="">暂不更新</option><option value="visited">已到店</option><option value="not_visited">未到店</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" onclick="closeM('followModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveFollow()">保存跟进</button>
-    </div>
-  </div>
-</div>
+<div class="modal-overlay" id="followModal"><div class="modal"><div class="modal-hd"><h3>销售跟进 - <span id="fcName"></span></h3><button class="modal-close" onclick="closeM('followModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="fOid">
+<div class="fg"><label>跟进备注</label><textarea id="fNote" placeholder="记录跟进内容..."></textarea></div>
+<div class="fg"><label>到店状态</label><select id="fVisit"><option value="">暂不更新</option><option value="visited">已到店</option><option value="not_visited">未到店</option></select></div>
+</div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('followModal')">取消</button><button class="btn btn-primary" onclick="saveFollow()">保存跟进</button></div></div></div>
 
 <!-- Deal Modal -->
-<div class="modal-overlay" id="dealModal">
-  <div class="modal">
-    <div class="modal-hd"><h3>确认成交 - <span id="dcName"></span></h3><button class="modal-close" onclick="closeM('dealModal')">&times;</button></div>
-    <div class="modal-bd">
-      <input type="hidden" id="dOid">
-      <div class="fg"><label>成交状态</label>
-        <select id="dStatus" style="width:100%;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:13px" onchange="document.getElementById('dAmtWrap').style.display=this.value==='closed'?'block':'none'">
-          <option value="closed">已成交</option><option value="not_closed">未成交</option>
-        </select>
-      </div>
-      <div class="fg" id="dAmtWrap"><label>成交金额 (元)</label><input type="number" id="dAmt" placeholder="成交金额" step="0.01" min="0"></div>
-      <div class="fg"><label>备注</label><textarea id="dNote" placeholder="成交备注..."></textarea></div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" onclick="closeM('dealModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveDeal()">确认提交</button>
-    </div>
-  </div>
+<div class="modal-overlay" id="dealModal"><div class="modal" style="width:540px"><div class="modal-hd"><h3>确认成交 - <span id="dcName"></span></h3><button class="modal-close" onclick="closeM('dealModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="dOid">
+<div class="fg"><label>成交状态</label><select id="dStatus" onchange="toggleAmtSplit()"><option value="closed">已成交</option><option value="not_closed">未成交</option></select></div>
+<div id="dAmtSplit" class="amt-split">
+  <h4>成交金额明细</h4>
+  <div class="amt-row"><label>活体售卖</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dLiveAmt" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
+  <div class="amt-row"><label>用品金额</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dSupplyAmt" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
+  <div class="amt-row"><label>利润</label><span style="color:var(--text2);font-size:12px">¥</span><input id="dProfit" type="number" step="0.01" placeholder="0" oninput="calcAmtTotal()"></div>
+  <div class="amt-total"><span>合计</span><strong id="dAmtTotal">¥0</strong></div>
 </div>
+<div class="fg"><label>备注</label><textarea id="dNote" placeholder="成交备注..."></textarea></div>
+<div class="copy-preview" id="copyPreview"></div>
+</div>
+<div class="modal-ft" style="justify-content:space-between">
+  <button class="copy-btn" onclick="copyOrderInfo()">复制订单信息</button>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-outline" onclick="closeM('dealModal')">取消</button>
+    <button class="btn btn-primary" onclick="saveDeal()">确认提交</button>
+  </div>
+</div></div></div>
 
-<!-- User Create Modal -->
-<div class="modal-overlay" id="userModal">
-  <div class="modal">
-    <div class="modal-hd"><h3 id="userModalTitle">新建销售账号</h3><button class="modal-close" onclick="closeM('userModal')">&times;</button></div>
-    <div class="modal-bd">
-      <input type="hidden" id="editUid">
-      <div class="fg"><label>用户名 *</label><input id="uUser" placeholder="登录用的账号"></div>
-      <div class="fg"><label>姓名 *</label><input id="uName" placeholder="真实姓名"></div>
-      <div class="fg"><label>电话</label><input id="uPhone" placeholder="联系电话"></div>
-      <div class="fg"><label>密码 <span id="uPwLabel">*</span></label><input type="text" id="uPass" placeholder="设置密码"></div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn btn-outline" onclick="closeM('userModal')">取消</button>
-      <button class="btn btn-primary" onclick="saveUser()">保存</button>
-    </div>
-  </div>
-</div>
+<!-- User Modal -->
+<div class="modal-overlay" id="userModal"><div class="modal"><div class="modal-hd"><h3 id="userModalTitle">新建销售账号</h3><button class="modal-close" onclick="closeM('userModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="editUid">
+<div class="fg"><label>用户名 *</label><input id="uUser"></div>
+<div class="fg"><label>姓名 *</label><input id="uName"></div>
+<div class="fg"><label>电话</label><input id="uPhone"></div>
+<div class="fg"><label>密码 <span id="uPwLabel">*</span></label><input type="text" id="uPass"></div>
+</div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('userModal')">取消</button><button class="btn btn-primary" onclick="saveUser()">保存</button></div></div></div>
 
 <script>
-// ===== GLOBAL STATE =====
-let me = null;
-let currentPage = 'dashboard';
-let dashPeriod = 'today';
-let suggestions = { sources: { fixed: [], smart: [] }, products: { fixed: [], smart: [] } };
+let me = null, currentPage = 'dashboard', dashPeriod = 'today', mapType = 'orders';
+let suggestions = {sources:{fixed:[],smart:[]},products:{fixed:[],smart:[]},stores:{fixed:[],smart:[]}};
 
-// ===== HELPERS =====
-function fmt(d) {
-  if (!d) return '-';
-  const dt = new Date(d);
-  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-}
-function fm(n) { return n != null ? '¥' + Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}) : '-'; }
-function closeM(id) { document.getElementById(id).classList.remove('show'); }
+function fmt(d){if(!d)return'-';const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`}
+function fm(n){return n!=null?'¥'+Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}):'-'}
+function closeM(id){document.getElementById(id).classList.remove('show')}
+function api(method,url,data){return fetch(url,{method,headers:data?{'Content-Type':'application/json'}:{},body:data?JSON.stringify(data):undefined,credentials:'same-origin'}).then(r=>{if(r.status===401){me=null;showLogin();return Promise.reject('unauth')}return r.json()})}
 
-function api(method, url, data) {
-  return fetch(url, {
-    method,
-    headers: data ? {'Content-Type':'application/json'} : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: 'same-origin'
-  }).then(r => {
-    if (r.status === 401) { me = null; showLogin(); return Promise.reject('unauth'); }
-    return r.json();
-  });
-}
+// Auth
+async function checkAuth(){try{const res=await api('GET','/api/auth/me');if(res.user){me=res.user;showApp();return true}}catch(e){}showLogin();return false}
+function showLogin(){document.getElementById('loginPage').style.display='flex';document.getElementById('mainApp').style.display='none';me=null}
+function showApp(){document.getElementById('loginPage').style.display='none';document.getElementById('mainApp').style.display='flex';document.getElementById('sAvatar').textContent=me.name[0];document.getElementById('sName').textContent=me.name;document.getElementById('sRole').textContent={admin:'管理员',sales:'销售',finance:'财务'}[me.role]||'';buildNav();switchPage(currentPage)}
+async function doLogin(){const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;if(!u||!p){document.getElementById('loginError').textContent='请输入账号和密码';document.getElementById('loginError').style.display='block';return}try{const res=await api('POST','/api/auth/login',{username:u,password:p});if(res.success){me=res.user;showApp()}else{showLoginError(res.error||'登录失败')}}catch(e){showLoginError('账号或密码错误')}}
+function showLoginError(m){const e=document.getElementById('loginError');e.textContent=m;e.style.display='block'}
+async function doLogout(){await api('POST','/api/auth/logout').catch(()=>{});showLogin()}
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
-// ===== AUTH =====
-async function checkAuth() {
-  try {
-    const res = await api('GET', '/api/auth/me');
-    if (res.user) { me = res.user; showApp(); return true; }
-  } catch(e) {}
-  showLogin();
-  return false;
+// Nav
+function buildNav(){
+  const r=me.role,items=[];
+  if(r==='admin')items.push({p:'dashboard',l:'销售看板'},{p:'citymap',l:'城市地图'},{p:'orders',l:'订单管理'},{p:'sales-follow',l:'销售跟进'},{p:'finance-follow',l:'财务跟进'},{p:'accounts',l:'账号管理'});
+  else if(r==='sales')items.push({p:'orders',l:'我的订单'},{p:'sales-follow',l:'跟进客户'});
+  else if(r==='finance')items.push({p:'finance-follow',l:'确认成交'});
+  document.getElementById('sidebarNav').innerHTML=items.map(i=>`<div class="nav-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('');
+  document.getElementById('mobNav').innerHTML=items.map(i=>`<div class="mob-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('');
 }
 
-function showLogin() {
-  document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('mainApp').style.display = 'none';
-  me = null;
+function switchPage(page){
+  currentPage=page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg=document.getElementById('page-'+page);if(pg)pg.classList.add('active');
+  document.querySelectorAll('.nav-item,.mob-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll(`[data-page="${page}"]`).forEach(n=>n.classList.add('active'));
+  document.getElementById('pageTitle').textContent={dashboard:'销售看板',citymap:'城市地图',orders:'订单管理','sales-follow':'销售跟进','finance-follow':'财务跟进',accounts:'账号管理'}[page]||'';
+  const ah=document.getElementById('headerActions');
+  if(page==='dashboard'&&me.role==='admin')ah.innerHTML='<button class="btn btn-sm btn-outline" onclick="exportData()">导出数据</button>';
+  else if((page==='orders'||page==='sales-follow')&&(me.role==='admin'||me.role==='sales'))ah.innerHTML='<button class="btn btn-sm btn-primary" onclick="openOrderCreate()">+ 新建订单</button>';
+  else ah.innerHTML='';
+  if(page==='dashboard')loadDashboard();
+  if(page==='citymap')loadCityMap();
+  if(page==='orders')loadOrders();
+  if(page==='sales-follow')loadSalesFollow();
+  if(page==='finance-follow')loadFinanceFollow();
+  if(page==='accounts')loadUsers();
 }
 
-function showApp() {
-  document.getElementById('loginPage').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'flex';
-  document.getElementById('sAvatar').textContent = me.name[0];
-  document.getElementById('sName').textContent = me.name;
-  const roleNames = { admin: '管理员', sales: '销售', finance: '财务' };
-  document.getElementById('sRole').textContent = roleNames[me.role] || me.role;
-  buildNav();
-  switchPage(currentPage);
+// City lookup
+async function lookupCity(){
+  const phone=document.getElementById('ocPhone').value.trim();
+  if(phone.length<7)return;
+  try{const r=await api('GET','/api/phoneCity?phone='+encodeURIComponent(phone));if(r.city)document.getElementById('ocCity').value=r.city;loadStores(r.city)}catch(e){}
 }
 
-async function doLogin() {
-  const username = document.getElementById('loginUser').value.trim();
-  const password = document.getElementById('loginPass').value;
-  if (!username || !password) { showLoginError('请输入账号和密码'); return; }
-  const el = document.getElementById('loginError');
-  el.style.display = 'none';
-  try {
-    const res = await api('POST', '/api/auth/login', { username, password });
-    if (res.success) { me = res.user; showApp(); }
-    else { showLoginError(res.error || '登录失败'); }
-  } catch(e) { showLoginError('账号或密码错误，或网络不通'); }
+// Smart fields
+async function loadSuggestions(city){
+  try{const r=await api('GET','/api/suggestions?city='+(city||''));suggestions=r;buildSelects()}catch(e){}
 }
-function showLoginError(msg) {
-  const el = document.getElementById('loginError');
-  el.textContent = msg; el.style.display = 'block';
+function buildSelects(){
+  const src=document.getElementById('ocSource');src.innerHTML='';
+  [...suggestions.sources.fixed,...suggestions.sources.smart.map(s=>s.name)].forEach(s=>{src.innerHTML+=`<option value="${s}">${s}</option>`});
+  src.innerHTML+='<option value="__other__">其他（手动输入）</option>';
+  const prod=document.getElementById('ocProduct');prod.innerHTML='';
+  const pa=[...suggestions.products.fixed,...suggestions.products.smart.map(s=>s.name)];
+  if(pa.length){pa.forEach(s=>prod.innerHTML+=`<option value="${s}">${s}</option>`)}else{prod.innerHTML='<option value="__other__">其他（手动输入）</option>'}
+  prod.innerHTML+='<option value="__other__">其他（手动输入）</option>';
+  buildStoreSelect();
 }
-async function doLogout() {
-  await api('POST', '/api/auth/logout').catch(()=>{});
-  showLogin();
+function buildStoreSelect(){
+  const s=document.getElementById('ocStore');s.innerHTML='';
+  [...suggestions.stores.fixed,...suggestions.stores.smart.map(x=>x.name)].forEach(x=>{s.innerHTML+=`<option value="${x}">${x}</option>`});
+  s.innerHTML+='<option value="__other__">其他（手动输入）</option>';
 }
+async function loadStores(city){await loadSuggestions(city)}
+function onSourceChange(){const v=document.getElementById('ocSource').value;document.getElementById('ocSourceCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('ocSourceCustom').focus()}
+function onProductChange(){const v=document.getElementById('ocProduct').value;document.getElementById('ocProductCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('ocProductCustom').focus()}
+function onStoreChange(){const v=document.getElementById('ocStore').value;document.getElementById('ocStoreCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('ocStoreCustom').focus()}
+function gv(el,v){const s=document.getElementById(el);if(s.value==='__other__')return document.getElementById(el+'Custom').value.trim();return s.value}
 
-// Listen for Enter key on login
-document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-
-// ===== NAVIGATION =====
-function buildNav() {
-  const r = me.role;
-  const items = [];
-  if (r === 'admin') items.push(
-    { page: 'dashboard', label: '销售看板', icon: 'chart' },
-    { page: 'orders', label: '订单管理', icon: 'list' },
-    { page: 'sales-follow', label: '销售跟进', icon: 'user' },
-    { page: 'finance-follow', label: '财务跟进', icon: 'money' },
-    { page: 'accounts', label: '账号管理', icon: 'settings' },
-  );
-  else if (r === 'sales') items.push(
-    { page: 'orders', label: '我的订单', icon: 'list' },
-    { page: 'sales-follow', label: '跟进客户', icon: 'user' },
-  );
-  else if (r === 'finance') items.push(
-    { page: 'finance-follow', label: '确认成交', icon: 'money' },
-  );
-
-  const icons = {
-    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
-    list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>',
-    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    money: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
-    settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-  };
-
-  const navHtml = items.map(i => {
-    const active = i.page === currentPage ? ' active' : '';
-    return `<div class="nav-item${active}" data-page="${i.page}" onclick="switchPage('${i.page}')">${icons[i.icon]} ${i.label}</div>`;
-  }).join('');
-  document.getElementById('sidebarNav').innerHTML = navHtml;
-
-  // Mobile nav
-  const mobHtml = items.map(i => {
-    const active = i.page === currentPage ? ' active' : '';
-    return `<div class="mob-item${active}" data-page="${i.page}" onclick="switchPage('${i.page}')">${icons[i.icon]} <span>${i.label}</span></div>`;
-  }).join('');
-  document.getElementById('mobNav').innerHTML = mobHtml;
-}
-
-function switchPage(page) {
-  currentPage = page;
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const pg = document.getElementById('page-' + page);
-  if (pg) pg.classList.add('active');
-  // Nav
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll('.mob-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll(`[data-page="${page}"]`).forEach(n => n.classList.add('active'));
-  // Title
-  const titles = { dashboard:'销售看板', orders:'订单管理', 'sales-follow':'销售跟进', 'finance-follow':'财务跟进', accounts:'账号管理' };
-  document.getElementById('pageTitle').textContent = titles[page]||'';
-  // Actions
-  const ah = document.getElementById('headerActions');
-  if (page === 'dashboard' && me && me.role === 'admin') {
-    ah.innerHTML = '<button class="btn btn-sm btn-outline" onclick="exportData()">导出数据</button>';
-  } else if ((page === 'orders' || page === 'sales-follow') && me && (me.role === 'admin' || me.role === 'sales')) {
-    ah.innerHTML = '<button class="btn btn-sm btn-primary" onclick="openOrderCreate()">+ 新建订单</button>';
-  } else {
-    ah.innerHTML = '';
-  }
-
-  // Load data
-  if (page === 'dashboard') loadDashboard();
-  if (page === 'orders') loadOrders();
-  if (page === 'sales-follow') loadSalesFollow();
-  if (page === 'finance-follow') loadFinanceFollow();
-  if (page === 'accounts') loadUsers();
-}
-
-// ===== SMART SUGGESTIONS =====
-async function loadSuggestions() {
-  try {
-    const res = await api('GET', '/api/suggestions');
-    suggestions = res;
-    buildSourceSelect();
-    buildProductSelect();
-  } catch(e) {}
-}
-
-function buildSourceSelect() {
-  const sel = document.getElementById('ocSource');
-  sel.innerHTML = '';
-  const all = [...suggestions.sources.fixed, ...suggestions.sources.smart.map(s => s.name)];
-  all.forEach(s => { sel.innerHTML += `<option value="${s}">${s}</option>`; });
-  sel.innerHTML += '<option value="__other__">其他（手动输入）</option>';
-}
-
-function buildProductSelect() {
-  const sel = document.getElementById('ocProduct');
-  sel.innerHTML = '';
-  const all = [...suggestions.products.fixed, ...suggestions.products.smart.map(s => s.name)];
-  if (all.length === 0) {
-    sel.innerHTML = '<option value="__other__">其他（手动输入）</option>';
-  } else {
-    all.forEach(s => { sel.innerHTML += `<option value="${s}">${s}</option>`; });
-    sel.innerHTML += '<option value="__other__">其他（手动输入）</option>';
-  }
-}
-
-function onSourceChange() {
-  const val = document.getElementById('ocSource').value;
-  const input = document.getElementById('ocSourceCustom');
-  if (val === '__other__') { input.style.display = 'block'; input.focus(); }
-  else { input.style.display = 'none'; input.value = ''; }
-}
-
-function onProductChange() {
-  const val = document.getElementById('ocProduct').value;
-  const input = document.getElementById('ocProductCustom');
-  if (val === '__other__') { input.style.display = 'block'; input.focus(); }
-  else { input.style.display = 'none'; input.value = ''; }
-}
-
-function getSourceValue() {
-  const sel = document.getElementById('ocSource');
-  if (sel.value === '__other__') return document.getElementById('ocSourceCustom').value.trim();
-  return sel.value;
-}
-
-function getProductValue() {
-  const sel = document.getElementById('ocProduct');
-  if (sel.value === '__other__') return document.getElementById('ocProductCustom').value.trim();
-  return sel.value;
-}
-
-// ===== ORDER CRUD =====
-async function openOrderCreate(editId) {
-  await loadSuggestions();
-  document.getElementById('modalTitle').textContent = editId ? '编辑订单' : '新建订单';
-  document.getElementById('editOid').value = editId || '';
-  if (editId) {
-    try {
-      const res = await api('GET', '/api/orders');
-      const o = res.orders.find(x => x.id === editId);
-      if (o) {
-        document.getElementById('ocName').value = o.custName;
-        document.getElementById('ocPhone').value = o.custPhone;
-        // Set source
-        const srcOpts = document.getElementById('ocSource').options;
-        let srcFound = false;
-        for (let i=0;i<srcOpts.length;i++) {
-          if (srcOpts[i].value === o.custSource) { document.getElementById('ocSource').value = o.custSource; srcFound = true; break; }
-        }
-        if (!srcFound) { document.getElementById('ocSource').value = '__other__'; document.getElementById('ocSourceCustom').value = o.custSource||''; }
-        onSourceChange();
-        // Set product
-        const prodOpts = document.getElementById('ocProduct').options;
-        let prodFound = false;
-        for (let i=0;i<prodOpts.length;i++) {
-          if (prodOpts[i].value === o.custProduct) { document.getElementById('ocProduct').value = o.custProduct; prodFound = true; break; }
-        }
-        if (!prodFound && o.custProduct) { document.getElementById('ocProduct').value = '__other__'; document.getElementById('ocProductCustom').value = o.custProduct; }
-        else if (!o.custProduct) { document.getElementById('ocProduct').value = '__other__'; }
-        onProductChange();
-        document.getElementById('ocNote').value = o.custNote || '';
-      }
-    } catch(e) {}
-  } else {
-    document.getElementById('ocName').value = '';
-    document.getElementById('ocPhone').value = '';
-    document.getElementById('ocSource').value = '美团';
-    document.getElementById('ocSourceCustom').value = '';
-    document.getElementById('ocProduct').value = '__other__';
-    document.getElementById('ocProductCustom').value = '';
-    document.getElementById('ocNote').value = '';
-    onSourceChange();
-    onProductChange();
+// Orders
+async function openOrderCreate(editId){
+  await loadSuggestions(document.getElementById('ocCity')?.value||'');
+  document.getElementById('modalTitle').textContent=editId?'编辑订单':'新建订单';
+  document.getElementById('editOid').value=editId||'';
+  if(editId){
+    try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===editId);if(o){
+      document.getElementById('ocName').value=o.custName;document.getElementById('ocPhone').value=o.custPhone;
+      document.getElementById('ocCity').value=o.custCity||'';
+      setSelect('ocSource',o.custSource);setSelect('ocProduct',o.custProduct);setSelect('ocStore',o.storeAddress);
+      document.getElementById('ocNote').value=o.custNote||'';
+      onSourceChange();onProductChange();onStoreChange();
+      loadStores(o.custCity);
+    }}catch(e){}
+  }else{
+    document.getElementById('ocName').value='';document.getElementById('ocPhone').value='';document.getElementById('ocCity').value='';
+    document.getElementById('ocSource').value='美团';document.getElementById('ocProduct').value='__other__';document.getElementById('ocStore').value='__other__';
+    document.getElementById('ocNote').value='';document.getElementById('ocSourceCustom').value='';document.getElementById('ocProductCustom').value='';document.getElementById('ocStoreCustom').value='';
+    onSourceChange();onProductChange();onStoreChange();
   }
   document.getElementById('orderModal').classList.add('show');
 }
-
-async function saveOrder() {
-  const custName = document.getElementById('ocName').value.trim();
-  const custPhone = document.getElementById('ocPhone').value.trim();
-  if (!custName || !custPhone) { alert('请填写客户姓名和联系电话'); return; }
-  const custSource = getSourceValue();
-  const custProduct = getProductValue();
-  const custNote = document.getElementById('ocNote').value.trim();
-
-  const editId = document.getElementById('editOid').value;
-  try {
-    if (editId) {
-      await api('PUT', '/api/orders/' + editId, { custName, custPhone, custSource, custProduct, custNote });
-    } else {
-      await api('POST', '/api/orders', { custName, custPhone, custSource, custProduct, custNote });
-    }
-    closeM('orderModal');
-    refreshCurrent();
-  } catch(e) { alert('保存失败，请重试'); }
+function setSelect(id,val){
+  const s=document.getElementById(id);
+  for(let i=0;i<s.options.length;i++)if(s.options[i].value===val){s.value=val;return}
+  s.value='__other__';document.getElementById(id+'Custom').value=val||'';
+}
+async function saveOrder(){
+  const custName=document.getElementById('ocName').value.trim(),custPhone=document.getElementById('ocPhone').value.trim();
+  if(!custName||!custPhone){alert('请填写客户姓名和联系电话');return}
+  const data={custName,custPhone,custCity:document.getElementById('ocCity').value.trim(),custSource:gv('ocSource','ocSource'),storeAddress:gv('ocStore','ocStore'),custProduct:gv('ocProduct','ocProduct'),custNote:document.getElementById('ocNote').value.trim()};
+  const eid=document.getElementById('editOid').value;
+  try{await api(eid?'PUT':'POST',eid?'/api/orders/'+eid:'/api/orders',data);closeM('orderModal');refreshCurrent()}catch(e){alert('保存失败')}
 }
 
-// ===== FOLLOW =====
-async function openFollow(orderId) {
-  try {
-    const res = await api('GET', '/api/orders');
-    const o = res.orders.find(x => x.id === orderId);
-    if (!o) return;
-    document.getElementById('fOid').value = orderId;
-    document.getElementById('fcName').textContent = o.custName;
-    document.getElementById('fNote').value = '';
-    document.getElementById('fVisit').value = '';
-    document.getElementById('followModal').classList.add('show');
-  } catch(e) {}
+// Follow
+async function openFollow(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('fOid').value=oid;document.getElementById('fcName').textContent=o.custName;document.getElementById('fNote').value='';document.getElementById('fVisit').value='';document.getElementById('followModal').classList.add('show')}catch(e){}}
+async function saveFollow(){try{await api('POST','/api/orders/'+document.getElementById('fOid').value+'/follow',{note:document.getElementById('fNote').value.trim(),visitStatus:document.getElementById('fVisit').value||null});closeM('followModal');refreshCurrent()}catch(e){alert('操作失败')}}
+
+// Deal
+function toggleAmtSplit(){document.getElementById('dAmtSplit').style.display=document.getElementById('dStatus').value==='closed'?'block':'none'}
+function calcAmtTotal(){const l=parseFloat(document.getElementById('dLiveAmt').value)||0,s=parseFloat(document.getElementById('dSupplyAmt').value)||0,p=parseFloat(document.getElementById('dProfit').value)||0;document.getElementById('dAmtTotal').textContent='¥'+(l+s+p).toFixed(2)}
+async function openDeal(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('dOid').value=oid;document.getElementById('dcName').textContent=o.custName;document.getElementById('dStatus').value='closed';document.getElementById('dLiveAmt').value='';document.getElementById('dSupplyAmt').value='';document.getElementById('dProfit').value='';document.getElementById('dNote').value='';document.getElementById('dAmtSplit').style.display='block';calcAmtTotal();document.getElementById('copyPreview').style.display='none';document.getElementById('dealModal').classList.add('show')}catch(e){}}
+async function saveDeal(){const dealStatus=document.getElementById('dStatus').value,liveAmount=parseFloat(document.getElementById('dLiveAmt').value)||0,supplyAmount=parseFloat(document.getElementById('dSupplyAmt').value)||0,profit=parseFloat(document.getElementById('dProfit').value)||0,note=document.getElementById('dNote').value.trim();if(dealStatus==='closed'&&liveAmount+supplyAmount+profit<=0){alert('请输入成交金额');return}try{await api('POST','/api/orders/'+document.getElementById('dOid').value+'/deal',{dealStatus,liveAmount,supplyAmount,profit,note});closeM('dealModal');refreshCurrent()}catch(e){alert('操作失败')}}
+
+// Copy order info
+async function copyOrderInfo(){
+  try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===document.getElementById('dOid').value);
+  if(!o)return;
+  const text=`【日期】：${new Date().toISOString().slice(0,10)}\n【城市】：${o.custCity||'-'}\n【品种】：${o.custProduct||'-'}\n【电话】：${o.custPhone||'-'}\n【位置】：${o.storeAddress||'-'}\n【备注】：${o.custNote||'-'}`;
+  await navigator.clipboard.writeText(text);
+  const p=document.getElementById('copyPreview');p.textContent=text.replace(/\n/g,'<br>');p.style.display='block';
+  setTimeout(()=>p.style.display='none',3000);
+  }catch(e){alert('复制失败')}
 }
 
-async function saveFollow() {
-  const orderId = document.getElementById('fOid').value;
-  const note = document.getElementById('fNote').value.trim();
-  const visitStatus = document.getElementById('fVisit').value;
-  try {
-    await api('POST', '/api/orders/' + orderId + '/follow', { note, visitStatus: visitStatus || null });
-    closeM('followModal');
-    refreshCurrent();
-  } catch(e) { alert('操作失败，请重试'); }
+// Load data
+async function loadDashboard(period){
+  if(period)dashPeriod=period;if(me.role!=='admin')return;
+  try{const r=await api('GET','/api/stats'),s=r.stats,key={today:'today',week:'week',month:'month'}[dashPeriod]||'today',d=s[key];
+  document.getElementById('statGrid').innerHTML=`
+    <div class="stat-card c1"><div class="stat-label">新增订单</div><div class="stat-value">${d.total}</div><div class="stat-sub">累计 ${s.all.total} 条</div></div>
+    <div class="stat-card c2"><div class="stat-label">到店客户</div><div class="stat-value">${d.visited}</div><div class="stat-sub">到店率 ${d.total?Math.round(d.visited/d.total*100):0}%</div></div>
+    <div class="stat-card c3"><div class="stat-label">成交订单</div><div class="stat-value">${d.closed}</div><div class="stat-sub">成交率 ${d.visited?Math.round(d.closed/d.visited*100):0}%</div></div>
+    <div class="stat-card c4"><div class="stat-label">成交金额</div><div class="stat-value">${fm(d.revenue)}</div><div class="stat-sub">客单价 ${d.closed?fm(d.revenue/d.closed):'-'}</div></div>`;
+  document.getElementById('amtStatGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">活体售卖</div><div class="stat-value" style="color:var(--accent)">${fm(d.liveRevenue||0)}</div></div>
+    <div class="stat-card"><div class="stat-label">用品金额</div><div class="stat-value" style="color:var(--green)">${fm(d.supplyRevenue||0)}</div></div>
+    <div class="stat-card"><div class="stat-label">利润</div><div class="stat-value" style="color:var(--orange)">${fm(d.profit||0)}</div></div>`;
+  const maxT=Math.max(...r.trend.map(x=>x.orders),1);
+  document.getElementById('trendChart').innerHTML=r.trend.map(x=>`<div class="bar-item"><div class="bar-val">${x.orders}</div><div class="bar" style="height:${Math.max(x.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${x.label}</div></div>`).join('');
+  const sc={'新建':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'跟进中':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'已到店':d.visited-d.closed-d.notClosed,'未到店':d.notVisited,'已成交':d.closed,'未成交':d.notClosed};
+  const scM=Math.max(...Object.values(sc),1);const cc={'新建':'#3b82f6','跟进中':'#f59e0b','已到店':'#22c55e','未到店':'#ef4444','已成交':'#a855f7','未成交':'#ef4444'};
+  document.getElementById('statusChart').innerHTML=Object.entries(sc).map(([k,v])=>`<div class="bar-item"><div class="bar-val">${v}</div><div class="bar" style="height:${Math.max(v/scM*100,3)}px;background:${cc[k]}"></div><div class="bar-label">${k}</div></div>`).join('');
+  document.getElementById('rankTbl').innerHTML=r.ranking.length?r.ranking.map((x,i)=>`<tr><td>#${i+1}</td><td>${x.name}</td><td>${x.total}</td><td>${x.visited}</td><td>${x.closed}</td><td class="amt">${fm(x.revenue)}</td><td>${x.total?Math.round(x.closed/x.total*100):0}%</td></tr>`).join(''):'<tr><td colspan="7" class="empty">暂无数据</td></tr>';
+  }catch(e){}
 }
 
-// ===== DEAL =====
-async function openDeal(orderId) {
-  try {
-    const res = await api('GET', '/api/orders');
-    const o = res.orders.find(x => x.id === orderId);
-    if (!o) return;
-    document.getElementById('dOid').value = orderId;
-    document.getElementById('dcName').textContent = o.custName;
-    document.getElementById('dStatus').value = 'closed';
-    document.getElementById('dAmt').value = '';
-    document.getElementById('dNote').value = '';
-    document.getElementById('dAmtWrap').style.display = 'block';
-    document.getElementById('dealModal').classList.add('show');
-  } catch(e) {}
+// City map
+let mapChart=null;
+async function loadCityMap(type){
+  if(type)mapType=type;
+  try{const r=await api('GET','/api/cityStats');
+  const chartDom=document.getElementById('mapChart');
+  // Use bubble chart as ECharts map requires geoJSON
+  if(!mapChart)mapChart=echarts.init(chartDom);
+  const cities=r.cities||[];
+  const key=mapType;const title={orders:'订单量',visited:'到店数',closed:'成交数'}[key];
+  const maxV=Math.max(...cities.map(c=>c[key]||0),1);
+  mapChart.setOption({
+    title:{text:'城市' + title + '分布',left:'center',top:10,textStyle:{fontSize:14,color:'#9498a8'}},
+    tooltip:{formatter:p=>`<b>${p.name}</b><br/>${title}: ${p.value[2]}`},
+    xAxis:{type:'category',data:cities.map(c=>c.city),axisLabel:{fontSize:10,color:'#9498a8'},axisLine:{lineStyle:{color:'#2a2d3a'}}},
+    yAxis:{type:'value',axisLabel:{fontSize:10,color:'#9498a8'},splitLine:{lineStyle:{color:'#2a2d3a',type:'dashed'}}},
+    series:[{type:'scatter',symbolSize:d=>Math.max(d[2]/maxV*60+8,10),data:cities.map((c,i)=>[c.city,c[key],c[key]]),itemStyle:{color:'#4f7cf7',opacity:0.7},label:{show:true,formatter:p=>p.value[2],fontSize:11,color:'#e1e4ed'}}],
+    grid:{top:50,right:20,bottom:40,left:50}
+  },true);
+  document.getElementById('cityRankTbl').innerHTML=cities.length?cities.map((c,i)=>`<tr><td>#${i+1}</td><td>${c.city}</td><td>${c.orders}</td><td>${c.visited}</td><td style="color:var(--green);font-weight:600">${c.closed}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">暂无数据</td></tr>';
+  }catch(e){}
 }
 
-async function saveDeal() {
-  const orderId = document.getElementById('dOid').value;
-  const dealStatus = document.getElementById('dStatus').value;
-  const amount = parseFloat(document.getElementById('dAmt').value) || 0;
-  const note = document.getElementById('dNote').value.trim();
-  if (dealStatus === 'closed' && amount <= 0) { alert('请输入成交金额'); return; }
-  try {
-    await api('POST', '/api/orders/' + orderId + '/deal', { dealStatus, amount, note });
-    closeM('dealModal');
-    refreshCurrent();
-  } catch(e) { alert('操作失败，请重试'); }
+async function loadOrders(){
+  try{const r=await api('GET','/api/orders');let orders=r.orders;
+  const f=document.getElementById('filterStatus').value,s=document.getElementById('searchOrder').value.toLowerCase();
+  if(f!=='all')orders=orders.filter(o=>{if(f==='new')return o.visitStatus===null&&o.dealStatus===null&&o.followCount===0;if(f==='follow')return o.followCount>0&&o.visitStatus===null&&o.dealStatus===null;if(f==='visited')return o.visitStatus==='visited'&&o.dealStatus===null;if(f==='not_visited')return o.visitStatus==='not_visited';if(f==='closed')return o.dealStatus==='closed';if(f==='not_closed')return o.dealStatus==='not_closed';return true});
+  if(s)orders=orders.filter(o=>o.orderNo.toLowerCase().includes(s)||o.custName.toLowerCase().includes(s)||o.custPhone.includes(s));
+  const sa=me.role==='admin'||me.role==='sales';
+  document.getElementById('ordersTbl').innerHTML=orders.length?orders.map(o=>{let act='';if(o.visitStatus===null&&o.dealStatus===null&&sa)act+=`<button class="btn btn-sm btn-outline" onclick="openFollow('${o.id}')">跟进</button>`;if(o.visitStatus==='visited'&&o.dealStatus===null&&(me.role==='admin'||me.role==='finance'))act+=`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">确认成交</button>`;if(sa)act+=`<button class="btn btn-sm btn-outline" onclick="openOrderCreate('${o.id}')">编辑</button>`;return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td>${o.custProduct||'-'}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td>${o.visitStatus==='visited'?'<span class="badge b-visited">已到店</span>':o.visitStatus==='not_visited'?'<span class="badge b-nvisit">未到店</span>':'<span class="badge b-pending">待确认</span>'}</td><td>${o.dealStatus==='closed'?'<span class="badge b-closed">已成交</span>':o.dealStatus==='not_closed'?'<span class="badge b-nclosed">未成交</span>':'<span class="badge b-pending">待确认</span>'}</td><td>${o.dealStatus==='closed'?'<span class="amt">'+fm(o.dealAmount)+'</span>':'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="12" class="empty">暂无订单数据</td></tr>';
+  document.getElementById('ordersCount').textContent=`共 ${orders.length} 条`;}catch(e){}
 }
 
-// ===== LOAD DATA =====
-async function loadDashboard(period) {
-  if (period) dashPeriod = period;
-  if (me.role !== 'admin') return;
-  try {
-    const res = await api('GET', '/api/stats');
-    const s = res.stats;
-    const key = {today:'today',week:'week',month:'month'}[dashPeriod] || 'today';
-    const data = s[key];
-    const total = s.all.total;
-    document.getElementById('statGrid').innerHTML = `
-      <div class="stat-card c1"><div class="stat-label">新增订单</div><div class="stat-value">${data.total}</div><div class="stat-sub">累计 ${total} 条</div></div>
-      <div class="stat-card c2"><div class="stat-label">到店客户</div><div class="stat-value">${data.visited}</div><div class="stat-sub">到店率 ${data.total?Math.round(data.visited/data.total*100):0}%</div></div>
-      <div class="stat-card c3"><div class="stat-label">成交订单</div><div class="stat-value">${data.closed}</div><div class="stat-sub">成交率 ${data.visited?Math.round(data.closed/data.visited*100):0}%</div></div>
-      <div class="stat-card c4"><div class="stat-label">成交金额</div><div class="stat-value">${fm(data.revenue)}</div><div class="stat-sub">客单价 ${data.closed?fm(data.revenue/data.closed):'-'}</div></div>
-    `;
-    // Trend
-    const maxT = Math.max(...res.trend.map(d=>d.orders),1);
-    document.getElementById('trendChart').innerHTML = res.trend.map(d => `
-      <div class="bar-item"><div class="bar-val">${d.orders}</div><div class="bar" style="height:${Math.max(d.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${d.label}</div></div>
-    `).join('');
-    // Status
-    const sc = {
-      '新建': data.total - data.visited - data.notVisited - data.closed - data.notClosed,
-      '跟进中': Math.max(data.total - data.visited - data.notVisited - data.closed - data.notClosed, 0),
-      '已到店': data.visited - data.closed - data.notClosed,
-      '未到店': data.notVisited,
-      '已成交': data.closed,
-      '未成交': data.notClosed
-    };
-    const scMax = Math.max(...Object.values(sc),1);
-    const colors = {'新建':'#3b82f6','跟进中':'#f59e0b','已到店':'#22c55e','未到店':'#ef4444','已成交':'#a855f7','未成交':'#ef4444'};
-    document.getElementById('statusChart').innerHTML = Object.entries(sc).map(([k,v]) => `
-      <div class="bar-item"><div class="bar-val">${v}</div><div class="bar" style="height:${Math.max(v/scMax*100,3)}px;background:${colors[k]}"></div><div class="bar-label">${k}</div></div>
-    `).join('');
-    // Ranking
-    document.getElementById('rankTbl').innerHTML = res.ranking.length ? res.ranking.map((r,i) => `
-      <tr><td>#${i+1}</td><td>${r.name}</td><td>${r.total}</td><td>${r.visited}</td><td>${r.closed}</td><td class="amt">${fm(r.revenue)}</td><td>${r.total?Math.round(r.closed/r.total*100):0}%</td></tr>
-    `).join('') : '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text2)">暂无数据</td></tr>';
-  } catch(e) { console.error(e); }
+async function loadSalesFollow(){
+  try{const r=await api('GET','/api/orders');const orders=r.orders.filter(o=>o.visitStatus===null&&o.dealStatus===null);
+  document.getElementById('salesFollowTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td style="font-size:11px">${fmt(o.createdAt)}</td><td>${o.followCount||0}次</td><td style="font-size:11px">${o.lastFollowAt?fmt(o.lastFollowAt):'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openFollow('${o.id}')">跟进</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty">暂无待跟进订单</td></tr>';
+  document.getElementById('salesFollowCount').textContent=`共 ${orders.length} 条待跟进`;}catch(e){}
 }
 
-function statusBadge(o) {
-  if (o.dealStatus === 'closed') return '<span class="badge b-closed">已成交</span>';
-  if (o.dealStatus === 'not_closed') return '<span class="badge b-nclosed">未成交</span>';
-  if (o.visitStatus === 'visited') return '<span class="badge b-visited">已到店</span>';
-  if (o.visitStatus === 'not_visited') return '<span class="badge b-nvisit">未到店</span>';
-  if (o.followCount > 0) return '<span class="badge b-follow">跟进中</span>';
-  return '<span class="badge b-new">新建</span>';
+async function loadFinanceFollow(){
+  try{const r=await api('GET','/api/orders');const orders=r.orders.filter(o=>o.visitStatus==='visited'&&o.dealStatus===null);
+  document.getElementById('financeTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td style="font-size:11px">${fmt(o.visitAt)}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openDeal('${o.id}')">确认成交</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty">暂无待确认成交</td></tr>';
+  document.getElementById('financeCount').textContent=`共 ${orders.length} 条待确认`;}catch(e){}
 }
 
-async function loadOrders() {
-  try {
-    const res = await api('GET', '/api/orders');
-    let orders = res.orders;
-    const filter = document.getElementById('filterStatus').value;
-    const search = document.getElementById('searchOrder').value.toLowerCase();
-    if (filter !== 'all') {
-      orders = orders.filter(o => {
-        if (filter === 'new') return o.visitStatus===null && o.dealStatus===null && o.followCount===0;
-        if (filter === 'follow') return o.followCount>0 && o.visitStatus===null && o.dealStatus===null;
-        if (filter === 'visited') return o.visitStatus==='visited' && o.dealStatus===null;
-        if (filter === 'not_visited') return o.visitStatus==='not_visited';
-        if (filter === 'closed') return o.dealStatus==='closed';
-        if (filter === 'not_closed') return o.dealStatus==='not_closed';
-        return true;
-      });
-    }
-    if (search) orders = orders.filter(o => o.orderNo.toLowerCase().includes(search) || o.custName.toLowerCase().includes(search) || o.custPhone.includes(search));
+// Users
+async function loadUsers(){if(me.role!=='admin')return;try{const r=await api('GET','/api/users');document.getElementById('usersTbl').innerHTML=r.users.map(u=>`<tr><td>${u.username}</td><td>${u.name}</td><td>${u.phone||'-'}</td><td><span class="role-tag ${u.role==='admin'?'role-admin':u.role==='sales'?'role-sales':'role-finance'}">${u.role==='admin'?'管理员':u.role==='sales'?'销售':'财务'}</span></td><td style="font-size:11px">${u.createdAt?fmt(u.createdAt):'-'}</td><td><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="openUserEdit('${u.id}')">编辑</button>${u.role==='admin'?'<span style="font-size:11px;color:var(--text3)">不可删除</span>':'<button class="btn btn-sm btn-danger" onclick="delUser(\''+u.id+'\',\''+u.username+'\')">删除</button>'}</div></td></tr>`).join('')}catch(e){}}
+function openUserCreate(){document.getElementById('userModalTitle').textContent='新建销售账号';document.getElementById('editUid').value='';document.getElementById('uUser').value='';document.getElementById('uName').value='';document.getElementById('uPhone').value='';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=false;document.getElementById('uPwLabel').textContent='*';document.getElementById('userModal').classList.add('show')}
+async function openUserEdit(id){try{const r=await api('GET','/api/users');const u=r.users.find(x=>x.id===id);if(!u)return;document.getElementById('userModalTitle').textContent='编辑账号';document.getElementById('editUid').value=id;document.getElementById('uUser').value=u.username;document.getElementById('uName').value=u.name;document.getElementById('uPhone').value=u.phone||'';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=true;document.getElementById('uPwLabel').textContent='(留空则不修改)';document.getElementById('userModal').classList.add('show')}catch(e){}}
+async function saveUser(){const id=document.getElementById('editUid').value,username=document.getElementById('uUser').value.trim(),name=document.getElementById('uName').value.trim(),phone=document.getElementById('uPhone').value.trim(),password=document.getElementById('uPass').value.trim();if(!id&&(!username||!password||!name)){alert('请填写完整信息');return}try{if(id)await api('PUT','/api/users/'+id,{name,phone,password:password||undefined});else await api('POST','/api/users',{username,password,name,phone});closeM('userModal');loadUsers()}catch(e){alert('操作失败')}}
+async function delUser(id,name){if(!confirm(`确定删除"${name}"？`))return;try{await api('DELETE','/api/users/'+id);loadUsers()}catch(e){alert('删除失败')}}
 
-    const showActions = me.role === 'admin' || me.role === 'sales';
-    document.getElementById('ordersTbl').innerHTML = orders.length ? orders.map(o => {
-      let actionBtns = '';
-      if (o.visitStatus===null && o.dealStatus===null && showActions) {
-        actionBtns += `<button class="btn btn-sm btn-outline" onclick="openFollow('${o.id}')">跟进</button>`;
-      }
-      if (o.visitStatus==='visited'&&o.dealStatus===null && (me.role==='admin'||me.role==='finance')) {
-        actionBtns += `<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">确认成交</button>`;
-      }
-      if (showActions) actionBtns += `<button class="btn btn-sm btn-outline" onclick="openOrderCreate('${o.id}')">编辑</button>`;
-      return `<tr>
-        <td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td>
-        <td>${o.custName}</td>
-        <td style="font-size:11px">${o.custPhone}</td>
-        <td>${o.custSource||'-'}</td>
-        <td>${o.custProduct||'-'}</td>
-        <td>${o.salesPersonName||'-'}</td>
-        <td style="font-size:11px">${fmt(o.createdAt)}</td>
-        <td>${o.visitStatus==='visited'?'<span class="badge b-visited">已到店</span>':o.visitStatus==='not_visited'?'<span class="badge b-nvisit">未到店</span>':'<span class="badge b-pending">待确认</span>'}</td>
-        <td>${o.dealStatus==='closed'?'<span class="badge b-closed">已成交</span>':o.dealStatus==='not_closed'?'<span class="badge b-nclosed">未成交</span>':'<span class="badge b-pending">待确认</span>'}</td>
-        <td>${o.dealStatus==='closed'?'<span class="amt">'+fm(o.dealAmount)+'</span>':'-'}</td>
-        <td><div class="d-flex">${actionBtns}</div></td>
-      </tr>`;
-    }).join('') : '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text2)">暂无订单数据</td></tr>';
-    document.getElementById('ordersCount').textContent = `共 ${orders.length} 条`;
-  } catch(e) {}
-}
+async function exportData(){try{const r=await fetch('/api/export',{credentials:'same-origin'});const b=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='sales-export.json';a.click()}catch(e){}}
 
-async function loadSalesFollow() {
-  try {
-    const res = await api('GET', '/api/orders');
-    const orders = res.orders.filter(o => o.visitStatus === null && o.dealStatus === null);
-    document.getElementById('salesFollowTbl').innerHTML = orders.length ? orders.map(o => `
-      <tr>
-        <td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td>
-        <td>${o.custName}</td>
-        <td style="font-size:11px">${o.custPhone}</td>
-        <td>${o.custSource||'-'}</td>
-        <td style="font-size:11px">${fmt(o.createdAt)}</td>
-        <td>${o.followCount||0}次</td>
-        <td style="font-size:11px">${o.lastFollowAt?fmt(o.lastFollowAt):'-'}</td>
-        <td><button class="btn btn-sm btn-primary" onclick="openFollow('${o.id}')">跟进</button></td>
-      </tr>
-    `).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text2)">暂无待跟进订单</td></tr>';
-    document.getElementById('salesFollowCount').textContent = `共 ${orders.length} 条待跟进`;
-  } catch(e) {}
-}
+function refreshCurrent(){switchPage(currentPage)}
 
-async function loadFinanceFollow() {
-  try {
-    const res = await api('GET', '/api/orders');
-    const orders = res.orders.filter(o => o.visitStatus === 'visited' && o.dealStatus === null);
-    document.getElementById('financeTbl').innerHTML = orders.length ? orders.map(o => `
-      <tr>
-        <td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td>
-        <td>${o.custName}</td>
-        <td style="font-size:11px">${o.custPhone}</td>
-        <td style="font-size:11px">${fmt(o.visitAt)}</td>
-        <td>${o.salesPersonName||'-'}</td>
-        <td>${o.custNote||'-'}</td>
-        <td><button class="btn btn-sm btn-primary" onclick="openDeal('${o.id}')">确认成交</button></td>
-      </tr>
-    `).join('') : '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text2)">暂无待确认成交的订单</td></tr>';
-    document.getElementById('financeCount').textContent = `共 ${orders.length} 条待确认`;
-  } catch(e) {}
-}
-
-// ===== USER MANAGEMENT =====
-async function loadUsers() {
-  if (me.role !== 'admin') return;
-  try {
-    const res = await api('GET', '/api/users');
-    document.getElementById('usersTbl').innerHTML = res.users.map(u => `
-      <tr>
-        <td>${u.username}</td><td>${u.name}</td><td>${u.phone||'-'}</td>
-        <td><span class="role-tag role-${u.role}">${u.role==='admin'?'管理员':u.role==='sales'?'销售':'财务'}</span></td>
-        <td style="font-size:11px">${u.createdAt?fmt(u.createdAt):'-'}</td>
-        <td><div class="d-flex">
-          <button class="btn btn-sm btn-outline" onclick="openUserEdit('${u.id}')">编辑</button>
-          ${u.role==='admin'?'<span style="font-size:11px;color:var(--text3)">不可删除</span>':`<button class="btn btn-sm btn-danger" onclick="delUser('${u.id}','${u.username}')">删除</button>`}
-        </div></td>
-      </tr>
-    `).join('');
-  } catch(e) {}
-}
-
-function openUserCreate() {
-  document.getElementById('userModalTitle').textContent = '新建销售账号';
-  document.getElementById('editUid').value = '';
-  document.getElementById('uUser').value = '';
-  document.getElementById('uName').value = '';
-  document.getElementById('uPhone').value = '';
-  document.getElementById('uPass').value = '';
-  document.getElementById('uUser').disabled = false;
-  document.getElementById('uPwLabel').textContent = '*';
-  document.getElementById('userModal').classList.add('show');
-}
-
-async function openUserEdit(id) {
-  try {
-    const res = await api('GET', '/api/users');
-    const u = res.users.find(x => x.id === id);
-    if (!u) return;
-    document.getElementById('userModalTitle').textContent = '编辑账号';
-    document.getElementById('editUid').value = id;
-    document.getElementById('uUser').value = u.username;
-    document.getElementById('uName').value = u.name;
-    document.getElementById('uPhone').value = u.phone||'';
-    document.getElementById('uPass').value = '';
-    document.getElementById('uUser').disabled = true;
-    document.getElementById('uPwLabel').textContent = '(留空则不修改)';
-    document.getElementById('userModal').classList.add('show');
-  } catch(e) {}
-}
-
-async function saveUser() {
-  const id = document.getElementById('editUid').value;
-  const username = document.getElementById('uUser').value.trim();
-  const name = document.getElementById('uName').value.trim();
-  const phone = document.getElementById('uPhone').value.trim();
-  const password = document.getElementById('uPass').value.trim();
-  if (!id && (!username || !password || !name)) { alert('请填写完整信息'); return; }
-  try {
-    if (id) {
-      await api('PUT', '/api/users/' + id, { name, phone, password: password || undefined });
-    } else {
-      await api('POST', '/api/users', { username, password, name, phone });
-    }
-    closeM('userModal');
-    loadUsers();
-  } catch(e) { alert('操作失败'); }
-}
-
-async function delUser(id, name) {
-  if (!confirm(`确定删除销售账号 "${name}"？`)) return;
-  try { await api('DELETE', '/api/users/' + id); loadUsers(); }
-  catch(e) { alert('删除失败'); }
-}
-
-// ===== EXPORT =====
-async function exportData() {
-  try {
-    const res = await fetch('/api/export', { credentials: 'same-origin' });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'sales-data-export.json'; a.click();
-    URL.revokeObjectURL(url);
-  } catch(e) {}
-}
-
-// ===== REFRESH =====
-function refreshCurrent() {
-  switchPage(currentPage);
-}
-
-// ===== TAB EVENTS =====
-document.addEventListener('click', e => {
-  if (e.target.classList.contains('tab')) {
-    document.querySelectorAll('#dashTabs .tab').forEach(t => t.classList.remove('active'));
-    e.target.classList.add('active');
-    loadDashboard(e.target.dataset.period);
-  }
+// Events
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('tab')&&e.target.closest('#dashTabs')){document.querySelectorAll('#dashTabs .tab').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');loadDashboard(e.target.dataset.period)}
+  if(e.target.dataset.maptype){document.querySelectorAll('[data-maptype]').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');loadCityMap(e.target.dataset.maptype)}
 });
 
-// ===== START =====
+// Init
+document.getElementById('dashTabs').innerHTML='<button class="tab active" data-period="today">今日</button><button class="tab" data-period="week">本周</button><button class="tab" data-period="month">本月</button>';
 checkAuth();
 </script>
 </body>

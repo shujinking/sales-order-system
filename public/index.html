@@ -186,7 +186,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
       <div class="page" id="page-sales-follow"><div class="section"><div class="section-hd"><h3>待跟进订单</h3></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>来源</th><th>创建</th><th>跟进次数</th><th>最后跟进</th><th>操作</th></tr></thead><tbody id="salesFollowTbl"></tbody></table></div><div class="section-ft" id="salesFollowCount"></div></div></div>
 
       <!-- Finance -->
-      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>待确认成交（已到店客户）</h3></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
+      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>待确认成交（已到店客户）</h3><div class="search-row"><input type="date" id="fDateFrom" onchange="loadFinanceFollow()" style="width:130px"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="fDateTo" onchange="loadFinanceFollow()" style="width:130px"><button class="btn btn-sm btn-outline" onclick="downloadFinanceOrders()">下载列表</button></div></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>日期</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
 
       <!-- Accounts -->
       <div class="page" id="page-accounts"><div class="section"><div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div><div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>电话</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div><div class="section-ft">财务账号不可删除，只能编辑</div></div></div>
@@ -479,10 +479,22 @@ async function loadSalesFollow(){
 }
 
 async function loadFinanceFollow(){
-  try{const r=await api('GET','/api/orders');const orders=r.orders.filter(o=>(o.visitStatus==='visited'||o.visitStatus==='pending_visit')&&o.dealStatus===null);
+  try{const r=await api('GET','/api/orders');
+  let orders=r.orders.filter(o=>(o.visitStatus==='visited'||o.visitStatus==='pending_visit')&&o.dealStatus===null);
+  // Date filter
+  const df=document.getElementById('fDateFrom').value,dt=document.getElementById('fDateTo').value;
+  if(df)orders=orders.filter(o=>o.createdAt.slice(0,10)>=df);
+  if(dt)orders=orders.filter(o=>o.createdAt.slice(0,10)<=dt);
   const vb=v=>v==='visited'?'已到店':v==='pending_visit'?'即将到店':'待确认';
-  document.getElementById('financeTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openDeal('${o.id}')">确认成交</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty">暂无待确认成交</td></tr>';
+  document.getElementById('financeTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openDeal('${o.id}')">确认成交</button></td></tr>`).join(''):'<tr><td colspan="10" class="empty">暂无订单</td></tr>';
   document.getElementById('financeCount').textContent=`共 ${orders.length} 条`;}catch(e){}
+}
+
+function downloadFinanceOrders(){
+  const rows=[],tbl=document.getElementById('financeTbl');
+  tbl.querySelectorAll('tr').forEach(tr=>{if(tr.querySelector('.empty'))return;const r=[];tr.querySelectorAll('td').forEach(td=>{if(!td.querySelector('button'))r.push(td.textContent.trim())});if(r.length)rows.push(r.join(','))});
+  const csv='订单号,日期,客户,电话,城市,到店,销售,店铺,备注\n'+rows.join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\ufeff'+encodeURIComponent(csv);a.download='订单列表-'+new Date().toISOString().slice(0,10)+'.csv';a.click()
 }
 
 // Users

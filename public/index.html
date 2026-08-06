@@ -200,7 +200,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 </div>
 <div class="fg"><label>归属店铺地址</label><select id="ocStore" onchange="onStoreChange()"><option value="__other__">其他（手动输入）</option></select><input id="ocStoreCustom" placeholder="输入店铺地址" style="display:none;margin-top:6px"></div>
 <div class="fg"><label>意向产品</label><select id="ocProduct" onchange="onProductChange()"><option value="__other__">其他</option></select><input id="ocProductCustom" placeholder="输入意向产品" style="display:none;margin-top:6px"></div>
-<div class="fg"><label>备注信息</label><textarea id="ocNote" placeholder="预计多久到：&#10;大概报价："></textarea></div>
+<div class="fg"><label>备注信息</label><textarea id="ocNote">预计多久到：&#10;大概报价：</textarea></div>
 </div>
 <div class="modal-ft"><button class="btn btn-outline" onclick="closeM('orderModal')">取消</button><button class="btn btn-primary" onclick="saveOrder()">保存</button></div></div></div>
 
@@ -338,7 +338,8 @@ async function openOrderCreate(editId){
   }else{
     document.getElementById('ocName').value='';document.getElementById('ocPhone').value='';document.getElementById('ocCity').value='';
     document.getElementById('ocSource').value='美团';document.getElementById('ocProduct').value='__other__';document.getElementById('ocStore').value='__other__';
-    document.getElementById('ocNote').value='';document.getElementById('ocSourceCustom').value='';document.getElementById('ocProductCustom').value='';document.getElementById('ocStoreCustom').value='';
+    document.getElementById('ocNote').value='预计多久到：\n大概报价：';
+    document.getElementById('ocSourceCustom').value='';document.getElementById('ocProductCustom').value='';document.getElementById('ocStoreCustom').value='';
     onSourceChange();onProductChange();onStoreChange();
   }
   document.getElementById('orderModal').classList.add('show');

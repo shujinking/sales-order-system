@@ -242,7 +242,7 @@ app.get('/api/orders', requireAuth, async (req, res) => {
   const user = req.session.user;
   orders = user.role === 'admin' ? orders :
     user.role === 'sales' ? orders.filter(o => o.salesPersonId === user.id) :
-    orders.filter(o => o.visitStatus === 'visited');
+    orders.filter(o => o.visitStatus === 'visited' || o.visitStatus === 'pending_visit');
   orders.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.json({ orders });
 });
@@ -280,6 +280,35 @@ app.put('/api/orders/:id', requireAuth, async (req, res) => {
   if (req.body.custSource) trackSuggestion('sources', req.body.custSource);
   if (req.body.custProduct) trackSuggestion('products', req.body.custProduct);
   if (req.body.storeAddress && o.custCity) trackSuggestion('stores', req.body.storeAddress, o.custCity);
+  res.json({ success: true, order: o });
+});
+
+app.post('/api/orders/:id/follow', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
+
+// Sales 一键报单：设置即将到店
+app.post('/api/orders/:id/report', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
+  const o = await findById('orders', req.params.id);
+  if (!o) return res.status(404).json({ error: '不存在' });
+  if (o.visitStatus !== null && o.visitStatus !== 'pending_visit') return res.status(400).json({ error: '已处理' });
+  if (req.session.user.role === 'sales' && o.salesPersonId !== req.session.user.id) return res.status(403).json({ error: '只能操作自己的' });
+  const now = new Date().toISOString();
+  o.visitStatus = 'pending_visit';
+  o.lastFollowAt = now;
+  o.followCount = (o.followCount || 0) + 1;
+  await updateItem('orders', req.params.id, o);
+  res.json({ success: true, order: o });
+});
+
+// Finance 确认到店
+app.post('/api/orders/:id/visit', requireAuth, requireRole('admin', 'finance'), async (req, res) => {
+  const o = await findById('orders', req.params.id);
+  if (!o) return res.status(404).json({ error: '不存在' });
+  const { visitStatus } = req.body;
+  if (!visitStatus || !['visited','not_visited'].includes(visitStatus)) return res.status(400).json({ error: '无效状态' });
+  const now = new Date().toISOString();
+  o.visitStatus = visitStatus;
+  if (visitStatus === 'visited') o.visitAt = now;
+  await updateItem('orders', req.params.id, o);
   res.json({ success: true, order: o });
 });
 

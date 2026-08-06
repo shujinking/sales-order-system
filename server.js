@@ -20,19 +20,185 @@ app.use(session({
 }));
 
 // ====== DATA LAYER (CloudBase DB or local JSON) ======
-let db = null; // CloudBase database instance
+// 数据持久化说明：
+//   - 云端（CloudBase 云托管容器）：必须使用 CloudBase 文档数据库。容器文件系统是临时的，
+//     每次「更新服务」都会重建容器，写在 data/*.json 里的数据会被重置 —— 这正是历史丢数据的原因。
+//   - 本地开发：使用 data/*.json，行为保持不变。
+const DATA_COLLECTIONS = ['users', 'orders', 'suggestions'];
 
-function initCloudBase() {
+let db = null;              // CloudBase 数据库实例；为 null 表示当前走本地 JSON
+let isCloudRuntime = false; // 是否运行在腾讯云 CloudBase 云托管 / 云函数容器内
+let localReady = false;     // 本地 JSON 存储是否已完成初始化
+
+/**
+ * 检测当前进程是否运行在腾讯云 CloudBase 云托管 / 云函数容器内。
+ * 云托管容器会注入 TENCENTCLOUD_RUNENV=SCF；容器编排环境会注入 KUBERNETES_SERVICE_HOST；
+ * 部分环境会注入 TCB_ENV / TCB_ENV_ID。任一命中即判定为云端环境。
+ * 可用 FORCE_LOCAL_STORAGE=1 / FORCE_CLOUD_DB=1 手动覆盖（便于本地联调）。
+ * @returns {boolean} true 表示处于云端环境
+ */
+function detectCloudRuntime() {
+  if (process.env.FORCE_LOCAL_STORAGE === '1') {
+    console.log('FORCE_LOCAL_STORAGE=1，强制使用本地 JSON 存储');
+    return false;
+  }
+  if (process.env.FORCE_CLOUD_DB === '1') {
+    console.log('FORCE_CLOUD_DB=1，强制按云端环境处理');
+    return true;
+  }
+  const hits = [];
+  if (process.env.TENCENTCLOUD_RUNENV === 'SCF') hits.push('TENCENTCLOUD_RUNENV=SCF');
+  if (process.env.TCB_ENV) hits.push('TCB_ENV=' + process.env.TCB_ENV);
+  if (process.env.TCB_ENV_ID) hits.push('TCB_ENV_ID=' + process.env.TCB_ENV_ID);
+  if (process.env.KUBERNETES_SERVICE_HOST) hits.push('KUBERNETES_SERVICE_HOST');
+  if (hits.length === 0) return false;
+  console.log('检测到云端运行环境: ' + hits.join(', '));
+  return true;
+}
+
+/**
+ * 解析 CloudBase 环境 ID。显式配置优先；都没有时返回空串，
+ * 由 SDK 通过容器内置服务身份自动识别当前环境。
+ * @returns {string} 环境 ID，未显式配置时为空串
+ */
+function resolveCloudEnvId() {
+  return process.env.TCB_ENV_ID || process.env.TCB_ENV || '';
+}
+
+/**
+ * 判断错误是否为「集合不存在」。此类错误说明连接是通的，只是集合还没建。
+ * @param {Error & {code?: string, errCode?: string|number}} err 捕获到的异常
+ * @returns {boolean}
+ */
+function isCollectionMissingError(err) {
+  const code = String((err && (err.code || err.errCode)) || '');
+  const msg = String((err && err.message) || '');
+  return code.indexOf('DATABASE_COLLECTION_NOT_EXIST') >= 0 ||
+    code === '-502005' ||
+    /collection\s+not\s+exist/i.test(msg) ||
+    msg.indexOf('集合不存在') >= 0;
+}
+
+/**
+ * 判断错误是否为「集合已存在」，并发创建时可安全忽略。
+ * @param {Error & {code?: string, errCode?: string|number}} err 捕获到的异常
+ * @returns {boolean}
+ */
+function isCollectionExistsError(err) {
+  const code = String((err && (err.code || err.errCode)) || '');
+  const msg = String((err && err.message) || '');
+  return code.indexOf('ALREADY_EXIST') >= 0 || /already\s+exist/i.test(msg) || msg.indexOf('已存在') >= 0;
+}
+
+/**
+ * 连通性验证：发起一次真实查询确认云数据库可达。
+ * 「集合不存在」说明数据库已正常响应，同样视为连通。
+ * @param {object} database CloudBase database 实例
+ * @returns {Promise<void>} 不连通时抛出异常
+ */
+async function probeCloudConnection(database) {
   try {
-    if (process.env.TCB_ENV_ID) {
-      const tcb = require('@cloudbase/node-sdk');
-      const tcbApp = tcb.init({ env: process.env.TCB_ENV_ID });
-      db = tcbApp.database();
-      console.log('CloudBase database connected: ' + process.env.TCB_ENV_ID);
-      return true;
+    await database.collection('users').limit(1).get();
+  } catch (e) {
+    if (!isCollectionMissingError(e)) throw e;
+  }
+}
+
+/**
+ * 尽力确保集合存在（best-effort，不影响已验证通过的连接状态）。
+ * @param {object} database CloudBase database 实例
+ * @param {string} name 集合名
+ * @returns {Promise<boolean>} 集合是否可用
+ */
+async function ensureCollection(database, name) {
+  try {
+    await database.collection(name).limit(1).get();
+    return true;
+  } catch (e) {
+    if (!isCollectionMissingError(e)) {
+      console.error('检查集合失败 ' + name + ': ' + e.message);
+      return false;
     }
-  } catch (e) { console.log('CloudBase init error:', e.message); }
-  return false;
+  }
+  if (typeof database.createCollection !== 'function') {
+    console.error('当前 SDK 不支持自动建集合，请在 CloudBase 控制台手动创建集合: ' + name);
+    return false;
+  }
+  try {
+    await database.createCollection(name);
+    console.log('已自动创建 CloudBase 集合: ' + name);
+    return true;
+  } catch (e) {
+    if (isCollectionExistsError(e)) return true;
+    console.error('创建集合失败 ' + name + ': ' + e.message);
+    return false;
+  }
+}
+
+/**
+ * 首次部署时向空的 users 集合写入默认账号，避免云端无账号可登录。
+ * 只在集合为空时执行，绝不覆盖已有数据；多实例并发导致的重复插入会被忽略。
+ * @param {object} database CloudBase database 实例
+ * @returns {Promise<void>}
+ */
+async function seedCloudDefaultUsers(database) {
+  const res = await database.collection('users').limit(1).get();
+  if (res && Array.isArray(res.data) && res.data.length > 0) return;
+  let seeded = 0;
+  for (const user of config.defaultUsers) {
+    try {
+      await database.collection('users').add({ ...user, _id: user.id });
+      seeded++;
+    } catch (e) {
+      // 并发实例可能已抢先写入，重复主键属正常情况，忽略即可
+      console.error('播种默认账号 ' + user.username + ' 跳过: ' + e.message);
+    }
+  }
+  if (seeded > 0) console.log('云端 users 集合为空，已写入 ' + seeded + ' 个默认账号');
+}
+
+/**
+ * 初始化 CloudBase 数据库连接。
+ * 只有在「检测到云端环境」且「真实查询验证通过」后才会把 db 赋值，
+ * 避免出现「以为连上了云库、实际写进临时文件」的静默丢数据。
+ * @returns {Promise<boolean>} true 表示云数据库可用
+ */
+async function initCloudBase() {
+  isCloudRuntime = detectCloudRuntime();
+  if (!isCloudRuntime) {
+    console.log('未检测到云端运行环境，按本地开发模式使用 data/*.json 存储');
+    return false;
+  }
+  const envId = resolveCloudEnvId();
+  try {
+    const tcb = require('@cloudbase/node-sdk');
+    // @cloudbase/node-sdk v2：云端容器内 init({}) 会自动使用内置服务身份连接当前环境
+    const tcbApp = tcb.init(envId ? { env: envId } : {});
+    const database = tcbApp.database();
+    // 关键一步：真实查询验证连通性，失败即视为云库不可用（绝不静默退回临时文件）
+    await probeCloudConnection(database);
+    // 以下为 best-effort，失败不影响已确认可用的连接
+    for (const name of DATA_COLLECTIONS) {
+      await ensureCollection(database, name);
+    }
+    try {
+      await seedCloudDefaultUsers(database);
+    } catch (e) {
+      console.error('默认账号播种跳过: ' + (e && e.message ? e.message : String(e)));
+    }
+    db = database;
+    console.log('CloudBase 数据库已连接' + (envId ? ' (env=' + envId + ')' : ' (使用容器内置服务身份)'));
+    return true;
+  } catch (e) {
+    db = null;
+    console.error('==================== 严重告警 ====================');
+    console.error('⚠️ 云端环境但无法连接 CloudBase 数据库，请检查云托管服务身份/环境变量');
+    console.error('⚠️ 错误信息: ' + (e && e.message ? e.message : String(e)));
+    console.error('⚠️ 当前将退化为容器内临时 JSON 文件存储，容器重建（更新服务）后数据会丢失！');
+    console.error('⚠️ 请立即为云托管服务开启「CloudBase 服务身份」或配置 TCB_ENV_ID 环境变量后重新部署。');
+    console.error('==================================================');
+    return false;
+  }
 }
 
 // In-memory cache for local fallback
@@ -51,7 +217,36 @@ function initLocal() {
     }
     localData[key] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   }
+  localReady = true;
   console.log('Using local JSON storage');
+  if (isCloudRuntime) {
+    console.error('⚠️ 提醒：当前处于云端环境却在使用临时 JSON 存储，数据不会持久化，请尽快修复数据库连接！');
+  }
+  return true;
+}
+
+/**
+ * 云库操作失败时的兜底取值。只有本地存储已初始化才回落到 localData，
+ * 否则返回结构正确的空值，避免 undefined 引发 TypeError。
+ * @param {string} name 集合名
+ * @returns {Array<object>|object}
+ */
+function localFallback(name) {
+  if (localReady && localData[name] !== undefined) return localData[name];
+  return name === 'suggestions' ? { sources: {}, products: {}, stores: {} } : [];
+}
+
+/**
+ * 确保本地数组集合可写，返回是否可用。
+ * @param {string} name 集合名
+ * @returns {boolean}
+ */
+function ensureLocalArray(name) {
+  if (!localReady) {
+    console.error('本地存储未初始化，写操作被忽略（集合: ' + name + '）');
+    return false;
+  }
+  if (!Array.isArray(localData[name])) localData[name] = [];
   return true;
 }
 
@@ -65,9 +260,9 @@ async function getCollection(name) {
         return doc;
       }
       return coll;
-    } catch (e) { console.log('DB error, falling back to local'); }
+    } catch (e) { console.error('getCollection error: ' + e.message); }
   }
-  return localData[name];
+  return localFallback(name);
 }
 
 async function readAll(name) {
@@ -78,41 +273,72 @@ async function readAll(name) {
         return doc ? { sources: doc.sources || {}, products: doc.products || {}, stores: doc.stores || {} } : { sources: {}, products: {}, stores: {} };
       }
       const res = await db.collection(name).limit(1000).get();
-      return res.data || [];
-    } catch (e) { console.log('readAll error, using local'); }
+      // 云端文档以 _id 为主键，前端统一使用 id，这里做一次兜底对齐
+      return (res.data || []).map(item => (item.id ? item : { ...item, id: item._id }));
+    } catch (e) { console.error('readAll error (' + name + '): ' + e.message); }
   }
-  return Array.isArray(localData[name]) ? [...localData[name]] : { ...localData[name] };
+  const local = localFallback(name);
+  return Array.isArray(local) ? [...local] : { ...local };
 }
 
 async function writeAll(name, data) {
   if (db) {
     try {
+      const coll = db.collection(name);
       if (name === 'suggestions') {
-        const coll = db.collection(name);
-        const docs = (await coll.limit(1).get()).data;
-        if (docs.length > 0) await coll.doc(docs[0]._id).update(data);
-        else await coll.add(data);
+        const docs = (await coll.limit(10).get()).data;
+        const payload = { ...data };
+        delete payload._id; // _id 为云端主键，不可作为更新字段
+        if (docs.length > 0) {
+          await coll.doc(docs[0]._id).update(payload);
+          // 防御性收敛：suggestions 约定为单文档，清理历史并发产生的多余文档
+          for (let i = 1; i < docs.length; i++) await coll.doc(docs[i]._id).remove();
+        } else {
+          await coll.add(payload);
+        }
         return;
       }
-      const coll = db.collection(name);
       const existing = (await coll.limit(1000).get()).data;
       for (const doc of existing) await coll.doc(doc._id).remove();
-      for (const item of data) await coll.add(item);
+      for (const item of data) await coll.add(toCloudDoc(item));
       return;
-    } catch (e) { console.log('writeAll error, using local'); }
+    } catch (e) { console.error('writeAll error (' + name + '): ' + e.message); return; }
   }
+  if (!localReady) { console.error('本地存储未初始化，writeAll 被忽略（集合: ' + name + '）'); return; }
   const fs = require('fs');
   const file = path.join(__dirname, 'data', name + '.json');
   localData[name] = data;
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
+/**
+ * 把本地结构的记录转换为云端文档：用业务 id 作为云端 _id，
+ * 使 doc(id).update/remove/get 这类按 id 定位的操作在云端同样成立。
+ * @param {object} item 业务记录，需含 id 字段
+ * @returns {object} 云端文档
+ */
+function toCloudDoc(item) {
+  const doc = { ...item };
+  if (doc.id && !doc._id) doc._id = doc.id;
+  return doc;
+}
+
 async function addItem(name, item) {
   if (db) {
+    const doc = toCloudDoc(item);
     try {
-      return (await db.collection(name).add(item)).id;
-    } catch (e) { console.log('addItem error'); }
+      const res = await db.collection(name).add(doc);
+      return doc._id || (res && res.id);
+    } catch (e) {
+      console.error('addItem error (' + name + '): ' + e.message);
+      try { // 少数环境不允许自定义 _id，退化为由云端生成主键
+        const { _id, ...rest } = doc;
+        const res = await db.collection(name).add(rest);
+        return res && res.id;
+      } catch (e2) { console.error('addItem retry failed (' + name + '): ' + e2.message); return null; }
+    }
   }
+  if (!ensureLocalArray(name)) return null;
   localData[name].push(item);
   await writeAll(name, localData[name]);
   return item.id || item._id;
@@ -121,32 +347,46 @@ async function addItem(name, item) {
 async function updateItem(name, id, updates) {
   if (db) {
     try {
-      await db.collection(name).doc(id).update(updates);
+      const payload = { ...updates };
+      delete payload._id; // _id 为云端主键，不可出现在更新字段中
+      await db.collection(name).doc(id).update(payload);
       return;
-    } catch (e) { console.log('updateItem error'); }
+    } catch (e) { console.error('updateItem error (' + name + '/' + id + '): ' + e.message); return; }
   }
+  if (!ensureLocalArray(name)) return;
   const idx = localData[name].findIndex(i => i.id === id);
   if (idx >= 0) { Object.assign(localData[name][idx], updates); await writeAll(name, localData[name]); }
 }
 
 async function removeItem(name, id) {
   if (db) {
-    try { await db.collection(name).doc(id).remove(); return; } catch (e) {}
+    try { await db.collection(name).doc(id).remove(); return; }
+    catch (e) { console.error('removeItem error (' + name + '/' + id + '): ' + e.message); return; }
   }
+  if (!ensureLocalArray(name)) return;
   localData[name] = localData[name].filter(i => i.id !== id);
   await writeAll(name, localData[name]);
 }
 
 async function findById(name, id) {
   if (db) {
-    try { return (await db.collection(name).doc(id).get()).data[0] || null; } catch (e) { return null; }
+    try {
+      const doc = (await db.collection(name).doc(id).get()).data[0] || null;
+      if (doc) return doc.id ? doc : { ...doc, id: doc._id };
+      // 兼容历史数据：_id 与业务 id 不一致时按 id 字段再查一次
+      const res = await db.collection(name).where({ id }).limit(1).get();
+      const found = res && res.data && res.data[0];
+      return found ? (found.id ? found : { ...found, id: found._id }) : null;
+    } catch (e) { console.error('findById error (' + name + '/' + id + '): ' + e.message); return null; }
   }
-  return localData[name].find(i => i.id === id) || null;
+  const local = localFallback(name);
+  return Array.isArray(local) ? (local.find(i => i.id === id) || null) : null;
 }
 
 // ====== INIT ======
-const usingDb = initCloudBase();
-if (!usingDb) { initLocal(); }
+// 初始化改为异步（需要真实查询验证云库连通性），实际执行放在文件末尾的启动 IIFE 中，
+// 服务在初始化完成后才 listen，因此路由处理时 db / localData 一定已就绪，无竞态。
+let usingDb = false;
 
 // ====== MIDDLEWARE ======
 function requireAuth(req, res, next) {
@@ -184,13 +424,38 @@ app.get('/api/suggestions', requireAuth, async (req, res) => {
   });
 });
 
-async function trackSuggestion(type, value, city) {
-  if (!value || value.trim() === '') return;
+// suggestions 是「读-改-写」同一份单文档的操作，调用方为并发触发（下单时同时记录来源/产品/门店）。
+// 用串行队列保证依次执行，避免并发下互相覆盖计数、甚至重复创建多份 suggestions 文档。
+let suggestionQueue = Promise.resolve();
+
+/**
+ * 累加一次联想词命中次数（内部实现，必须串行调用）。
+ * @param {string} type sources | products | stores
+ * @param {string} value 词条内容
+ * @param {string} [city] 门店类型下用于区分城市
+ * @returns {Promise<void>}
+ */
+async function applyTrackSuggestion(type, value, city) {
   const data = await readAll('suggestions');
   const key = (type === 'stores' && city) ? city + '|' + value : value;
   if (!data[type]) data[type] = {};
   data[type][key] = (data[type][key] || 0) + 1;
   await writeAll('suggestions', data);
+}
+
+/**
+ * 累加一次联想词命中次数。调用方可不 await（内部已捕获异常，不会产生未处理的 Promise 拒绝）。
+ * @param {string} type sources | products | stores
+ * @param {string} value 词条内容
+ * @param {string} [city] 门店类型下用于区分城市
+ * @returns {Promise<void>}
+ */
+function trackSuggestion(type, value, city) {
+  if (!value || typeof value !== 'string' || value.trim() === '') return suggestionQueue;
+  suggestionQueue = suggestionQueue
+    .then(() => applyTrackSuggestion(type, value, city))
+    .catch(e => console.error('trackSuggestion error (' + type + '): ' + (e && e.message ? e.message : String(e))));
+  return suggestionQueue;
 }
 
 // Auth
@@ -386,4 +651,15 @@ app.get('/api/export', requireAuth, requireRole('admin'), async (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
-app.listen(PORT, '0.0.0.0', () => console.log(`系统已启动: ${PORT}, ${usingDb ? 'CloudBase数据库' : '本地JSON存储'}`));
+// ====== STARTUP ======
+// 先完成数据层初始化（含云库连通性验证），再开始监听端口，避免请求打在未就绪的数据层上。
+(async () => {
+  try {
+    usingDb = await initCloudBase();
+  } catch (e) {
+    usingDb = false;
+    console.error('数据层初始化异常: ' + (e && e.message ? e.message : String(e)));
+  }
+  if (!usingDb) { initLocal(); }
+  app.listen(PORT, '0.0.0.0', () => console.log(`系统已启动: ${PORT}, ${usingDb ? 'CloudBase数据库' : '本地JSON存储'}`));
+})();

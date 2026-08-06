@@ -5,7 +5,8 @@ const path = require('path');
 const config = require('./config');
 
 const app = express();
-const PORT = config.port;
+const PORT = process.env.PORT || config.port;
+const SESSION_SECRET = process.env.SESSION_SECRET || config.sessionSecret;
 
 // 数据目录
 const DATA_DIR = path.join(__dirname, 'data');
@@ -22,13 +23,14 @@ const SUGGESTION_THRESHOLD = 5;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: config.sessionSecret,
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 8 * 60 * 60 * 1000 } // 8小时
 }));
 
 // ====== 初始化数据 ======
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, '[]');
 if (!fs.existsSync(USERS_FILE)) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(config.defaultUsers, null, 2));
@@ -394,6 +396,9 @@ app.get('/api/export', requireAuth, requireRole('admin'), (req, res) => {
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// 健康检查端点
+app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`销售订单管理系统已启动: http://0.0.0.0:${PORT}`);

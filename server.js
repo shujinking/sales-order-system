@@ -57,7 +57,7 @@ app.use(session({
 //   - 云端（CloudBase 云托管容器）：必须使用 CloudBase 文档数据库。容器文件系统是临时的，
 //     每次「更新服务」都会重建容器，写在 data/*.json 里的数据会被重置 —— 这正是历史丢数据的原因。
 //   - 本地开发：使用 data/*.json，行为保持不变。
-const DATA_COLLECTIONS = ['users', 'orders', 'suggestions'];
+const DATA_COLLECTIONS = ['users', 'orders', 'suggestions', 'stores'];
 
 let db = null;              // CloudBase 数据库实例；为 null 表示当前走本地 JSON
 let isCloudRuntime = false; // 是否运行在腾讯云 CloudBase 云托管 / 云函数容器内
@@ -191,6 +191,38 @@ async function seedCloudDefaultUsers(database) {
 }
 
 /**
+ * 首次部署时向空的 stores 集合写入种子卖场（data/stores.json，随代码包发布）。
+ * 只在集合为空时执行，绝不覆盖已有数据；按 city+name 去重由业务接口负责，
+ * 这里仅做「集合为空 → 全量播种」，重复主键异常忽略。
+ * @param {object} database CloudBase database 实例
+ * @returns {Promise<void>}
+ */
+async function seedCloudDefaultStores(database) {
+  const res = await database.collection('stores').limit(1).get();
+  if (res && Array.isArray(res.data) && res.data.length > 0) return;
+  let seed = [];
+  try {
+    seed = JSON.parse(fsSync.readFileSync(path.join(__dirname, 'data', 'stores.json'), 'utf-8'));
+  } catch (e) {
+    console.error('读取 data/stores.json 失败，云端默认卖场播种跳过: ' + e.message);
+    return;
+  }
+  if (!Array.isArray(seed)) return;
+  let seeded = 0;
+  for (const store of seed) {
+    if (!store || !store.id) continue;
+    try {
+      await database.collection('stores').add({ ...store, _id: store.id });
+      seeded++;
+    } catch (e) {
+      // 并发实例可能已抢先写入，重复主键属正常情况，忽略即可
+      console.error('播种默认卖场 ' + (store.name || store.id) + ' 跳过: ' + e.message);
+    }
+  }
+  if (seeded > 0) console.log('云端 stores 集合为空，已写入 ' + seeded + ' 个默认卖场');
+}
+
+/**
  * 初始化 CloudBase 数据库连接。
  * 只有在「检测到云端环境」且「真实查询验证通过」后才会把 db 赋值，
  * 避免出现「以为连上了云库、实际写进临时文件」的静默丢数据。
@@ -219,6 +251,11 @@ async function initCloudBase() {
     } catch (e) {
       console.error('默认账号播种跳过: ' + (e && e.message ? e.message : String(e)));
     }
+    try {
+      await seedCloudDefaultStores(database);
+    } catch (e) {
+      console.error('默认卖场播种跳过: ' + (e && e.message ? e.message : String(e)));
+    }
     db = database;
     console.log('CloudBase 数据库已连接' + (envId ? ' (env=' + envId + ')' : ' (使用容器内置服务身份)'));
     return true;
@@ -239,13 +276,14 @@ let localData = {};
 function initLocal() {
   const fs = require('fs');
   const dir = path.join(__dirname, 'data');
-  const files = { orders: 'orders.json', users: 'users.json', suggestions: 'suggestions.json' };
+  const files = { orders: 'orders.json', users: 'users.json', suggestions: 'suggestions.json', stores: 'stores.json' };
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   for (const [key, file] of Object.entries(files)) {
     const filePath = path.join(dir, file);
     if (!fs.existsSync(filePath)) {
       const defaults = key === 'users' ? config.defaultUsers :
-        key === 'suggestions' ? { sources: {}, products: {}, stores: {} } : [];
+        key === 'suggestions' ? { sources: {}, products: {}, stores: {} } :
+        key === 'stores' ? [] : [];
       fs.writeFileSync(filePath, JSON.stringify(defaults, null, 2));
     }
     localData[key] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -442,6 +480,86 @@ async function findById(name, id) {
   return Array.isArray(local) ? (local.find(i => i.id === id) || null) : null;
 }
 
+// ====== 工单状态工具（订单→工单 增量改造）======
+// 5 态字符串枚举（前后端统一）：
+//   pending(待处理) → appointed(已预约到店) → deal(已成交) → collected(已完结, 终态)
+//   另加 noshow(未到店, 财务搁置态)
+// status 为权威字段；旧字段（visitStatus/dealStatus/collected）双写镜像，兼容历史数据。
+const WORK_STATUSES = ['pending', 'appointed', 'deal', 'collected', 'noshow'];
+const WORK_STATUS_CN = { pending: '待处理', appointed: '已预约到店', deal: '已成交', collected: '已完结', noshow: '未到店' };
+
+/**
+ * 剥离城市名的「省/市」前后缀，统一为短名，如 甘肃兰州→兰州、江苏镇江→镇江、上海→上海。
+ * @param {*} raw 原始城市文本
+ * @returns {string} 标准化后的城市短名（空输入返回空串）
+ */
+function normalizeCityName(raw) {
+  if (raw === null || raw === undefined) return '';
+  let s = String(raw).trim();
+  if (!s) return '';
+  const provFull = ['北京市', '上海市', '天津市', '重庆市', '河北省', '山西省', '辽宁省', '吉林省', '黑龙江省', '江苏省', '浙江省', '安徽省', '福建省', '江西省', '山东省', '河南省', '湖北省', '湖南省', '广东省', '海南省', '四川省', '贵州省', '云南省', '陕西省', '甘肃省', '青海省', '台湾省', '内蒙古自治区', '广西壮族自治区', '西藏自治区', '宁夏回族自治区', '新疆维吾尔自治区', '香港特别行政区', '澳门特别行政区'];
+  for (const p of provFull) {
+    if (s.startsWith(p) && s.length > p.length) { s = s.slice(p.length); break; }
+  }
+  const provShort = ['北京', '上海', '天津', '重庆', '河北', '山西', '辽宁', '吉林', '黑龙江', '江苏', '浙江', '安徽', '福建', '江西', '山东', '河南', '湖北', '湖南', '广东', '海南', '四川', '贵州', '云南', '陕西', '甘肃', '青海', '台湾', '内蒙古', '广西', '西藏', '宁夏', '新疆', '香港', '澳门'];
+  for (const p of provShort) {
+    if (s.startsWith(p) && s.length > p.length) { s = s.slice(p.length); break; }
+  }
+  s = s.replace(/市$/, '');
+  return s || String(raw).trim().replace(/市$/, '');
+}
+
+/**
+ * 由工单/订单对象推导 5 态 status。status 字段存在且合法时直接采用；
+ * 否则由旧字段（collected/dealStatus/visitStatus）按权威镜像表反推，兼容历史数据。
+ * @param {object} o 工单/订单记录
+ * @returns {string} 'pending'|'appointed'|'deal'|'collected'|'noshow'
+ */
+function deriveStatus(o) {
+  if (!o) return 'pending';
+  if (o.status && WORK_STATUSES.includes(o.status)) return o.status;
+  if (o.collected === true) return 'collected';
+  if (o.dealStatus === 'closed') return 'deal';
+  if (o.visitStatus === 'not_visited') return 'noshow';
+  if (o.visitStatus === 'visited') return 'deal';
+  if (o.visitStatus === 'pending_visit') return 'appointed';
+  return 'pending';
+}
+
+/**
+ * 旧流程路由（visit/deal/follow 兼容入口）改完旧字段后调用，
+ * 把 status 同步为与旧字段镜像一致的值（status 双写）。
+ * 注意：必须忽略当前 status 字段本身（status 优先级最高会掩盖旧字段的新变化），
+ * 因此先临时删除 status，再按旧字段镜像重推。
+ * @param {object} o 工单/订单记录
+ * @returns {string} 同步后的 status
+ */
+function syncStatus(o) {
+  delete o.status; // 强制按旧字段镜像重推，避免 status 自身优先级掩盖旧流程写入
+  const s = deriveStatus(o);
+  o.status = s;
+  return s;
+}
+
+/**
+ * 生成当日自增工单号：'GD' + YYYYMMDD(北京时间) + '-' + 4位序号（如 GD20260807-0001）。
+ * @param {Array<object>} orders 全量工单/订单
+ * @param {string} dateKey 北京时区自然日 'YYYY-MM-DD'
+ * @returns {string} 新的工单号
+ */
+function nextWorkOrderNo(orders, dateKey) {
+  const prefix = 'GD' + String(dateKey || '').replace(/-/g, '') + '-';
+  let max = 0;
+  for (const o of (Array.isArray(orders) ? orders : [])) {
+    const no = o && o.workOrderNo ? String(o.workOrderNo) : '';
+    if (no.startsWith(prefix)) {
+      const n = parseInt(no.slice(prefix.length), 10);
+      if (!Number.isNaN(n) && n > max) max = n;
+    }
+  }
+  return prefix + String(max + 1).padStart(4, '0');
+}
+
 // ====== INIT ======
 // 初始化改为异步（需要真实查询验证云库连通性），实际执行放在文件末尾的启动 IIFE 中，
 // 服务在初始化完成后才 listen，因此路由处理时 db / localData 一定已就绪，无竞态。
@@ -535,11 +653,15 @@ app.get('/api/users', requireAuth, requireRole('admin'), async (req, res) => {
   res.json({ users: users.map(u => ({ id: u.id, username: u.username, role: u.role, name: u.name, phone: u.phone || '', createdAt: u.createdAt || '' })) });
 });
 app.post('/api/users', requireAuth, requireRole('admin'), async (req, res) => {
-  const { username, password, name, phone } = req.body;
+  const { username, password, name, phone, role } = req.body;
   if (!username || !password || !name) return res.status(400).json({ error: '请填写' });
+  // ★ 增量：建号角色白名单（不允许 admin），新增 finance_collect
+  const allowedRoles = ['sales', 'finance', 'finance_collect'];
+  const r = role || 'sales';
+  if (!allowedRoles.includes(r)) return res.status(400).json({ error: '角色不合法' });
   const users = await readAll('users');
   if (users.find(u => u.username === username)) return res.status(400).json({ error: '账号已存在' });
-  const n = { id: 'u' + Date.now(), username, password, role: 'sales', name, phone: phone || '', createdAt: new Date().toISOString() };
+  const n = { id: 'u' + Date.now(), username, password, role: r, name, phone: phone || '', createdAt: new Date().toISOString() };
   await addItem('users', n);
   res.json({ success: true });
 });
@@ -577,32 +699,45 @@ app.put('/api/auth/password', requireAuth, async (req, res) => {
 app.get('/api/orders', requireAuth, async (req, res) => {
   let orders = await readAll('orders');
   const user = req.session.user;
-  orders = user.role === 'admin' ? orders :
-    user.role === 'sales' ? orders.filter(o => o.salesPersonId === user.id) :
-    orders.filter(o => o.visitStatus === 'visited' || o.visitStatus === 'pending_visit');
+  // ★ 增量：按角色 + status 可见性
+  //   admin=全部；sales=本人；finance=非 pending；finance_collect=deal|collected
+  if (user.role === 'sales') {
+    orders = orders.filter(o => o.salesPersonId === user.id);
+  } else if (user.role === 'finance') {
+    orders = orders.filter(o => deriveStatus(o) !== 'pending');
+  } else if (user.role === 'finance_collect') {
+    orders = orders.filter(o => ['deal', 'collected'].includes(deriveStatus(o)));
+  }
   orders.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.json({ orders });
 });
 
 app.post('/api/orders', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
-  const { custName, custPhone, custSource, custProduct, custNote, custCity, storeAddress } = req.body;
-  if (!custName || !custPhone) return res.status(400).json({ error: '请填写姓名和电话' });
+  const { custName, custPhone, custSource, custProduct, custNote, custCity, store, storeAddress } = req.body;
+  // ★ 增量：校验改为 电话 + 意向品种 必填（不再要求姓名）
+  if (!custPhone || !custProduct) return res.status(400).json({ error: '请填写电话和意向品种' });
   const orders = await readAll('orders');
   const now = new Date().toISOString();
+  const city = normalizeCityName(custCity || '') || (custCity || '');
+  const storeVal = store !== undefined ? String(store) : (storeAddress || '');
   const order = {
     id: 'ORD' + Date.now(),
     orderNo: 'SO' + new Date().getFullYear() + String(new Date().getMonth()+1).padStart(2,'0') + String(new Date().getDate()).padStart(2,'0') + String(orders.length+1).padStart(4,'0'),
-    custName, custPhone, custCity: custCity || '', custSource: custSource || '', custProduct: custProduct || '',
-    storeAddress: storeAddress || '', custNote: custNote || '',
+    workOrderNo: nextWorkOrderNo(orders, bjDateKey(now)),
+    custName: custName || '', custPhone, custCity: city, custSource: custSource || '', custProduct,
+    store: storeVal, storeAddress: storeVal, custNote: custNote || '',
     salesPersonId: req.session.user.id, salesPersonName: req.session.user.name,
+    status: 'pending',
     visitStatus: null, visitAt: null, followCount: 0, lastFollowAt: null, followNote: null,
     dealStatus: null, dealAmount: null, dealLiveAmount: null, dealSupplyAmount: null, dealProfit: null,
+    amountLive: null, amountSupply: null, amountProfit: null,
+    collected: false,
     dealAt: null, dealNote: null, createdAt: now,
   };
   await addItem('orders', order);
   if (custSource) trackSuggestion('sources', custSource);
   if (custProduct) trackSuggestion('products', custProduct);
-  if (storeAddress && custCity) trackSuggestion('stores', storeAddress, custCity);
+  if (storeVal && city) trackSuggestion('stores', storeVal, city);
   res.json({ success: true, order });
 });
 
@@ -612,7 +747,14 @@ app.put('/api/orders/:id', requireAuth, async (req, res) => {
   if (idx === -1) return res.status(404).json({ error: '不存在' });
   const o = orders[idx];
   if (req.session.user.role === 'sales' && o.salesPersonId !== req.session.user.id) return res.status(403).json({ error: '只能操作自己的' });
-  ['custName','custPhone','custSource','custProduct','custNote','custCity','storeAddress'].forEach(f => { if (req.body[f] !== undefined) o[f] = req.body[f]; });
+  // ★ 增量：可编辑字段加 store(+镜像 storeAddress)、custCity（城市名标准化）
+  ['custName','custPhone','custSource','custProduct','custNote','custCity','storeAddress','store'].forEach(f => {
+    if (req.body[f] !== undefined) {
+      o[f] = f === 'custCity' ? (normalizeCityName(req.body[f]) || req.body[f]) : req.body[f];
+    }
+  });
+  if (req.body.store !== undefined) o.storeAddress = req.body.store;
+  if (req.body.storeAddress !== undefined) o.store = req.body.storeAddress;
   await updateItem('orders', req.params.id, o);
   if (req.body.custSource) trackSuggestion('sources', req.body.custSource);
   if (req.body.custProduct) trackSuggestion('products', req.body.custProduct);
@@ -620,18 +762,150 @@ app.put('/api/orders/:id', requireAuth, async (req, res) => {
   res.json({ success: true, order: o });
 });
 
-// Sales 一键报单：设置即将到店
+// Sales 一键报单：设置即将到店（★ 增量：改为 5 态模型 —— 仅 pending 可转 appointed）
 app.post('/api/orders/:id/report', requireAuth, requireRole('admin', 'sales'), async (req, res) => {
   const o = await findById('orders', req.params.id);
   if (!o) return res.status(404).json({ error: '不存在' });
-  if (o.visitStatus !== null && o.visitStatus !== 'pending_visit') return res.status(400).json({ error: '已处理' });
+  if (deriveStatus(o) !== 'pending') return res.status(400).json({ error: '仅待处理工单可一键预约到店' });
   if (req.session.user.role === 'sales' && o.salesPersonId !== req.session.user.id) return res.status(403).json({ error: '只能操作自己的' });
   const now = new Date().toISOString();
+  o.status = 'appointed';
   o.visitStatus = 'pending_visit';
   o.lastFollowAt = now;
   o.followCount = (o.followCount || 0) + 1;
   await updateItem('orders', req.params.id, o);
   res.json({ success: true, order: o });
+});
+
+// ★ 增量：已到店（仅 appointed 可转 deal），body 三金额可空/非必填
+app.put('/api/orders/:id/visit', requireAuth, requireRole('admin', 'finance'), async (req, res) => {
+  const o = await findById('orders', req.params.id);
+  if (!o) return res.status(404).json({ error: '不存在' });
+  if (!['appointed', 'noshow'].includes(deriveStatus(o))) return res.status(400).json({ error: '仅已预约到店或未到店工单可确认到店' });
+  const toNum = v => (v === undefined || v === null || v === '') ? null : (Number.isFinite(Number(v)) ? Number(v) : null);
+  const amountLive = toNum(req.body.amountLive);
+  const amountSupply = toNum(req.body.amountSupply);
+  const amountProfit = toNum(req.body.amountProfit);
+  const now = new Date().toISOString();
+  o.status = 'deal';
+  o.visitStatus = 'visited';
+  o.dealStatus = 'closed';
+  o.dealAt = now;
+  if (!o.visitAt) o.visitAt = now; // A11：存量 visitAt 不覆盖
+  o.amountLive = amountLive;
+  o.amountSupply = amountSupply;
+  o.amountProfit = amountProfit;
+  o.dealLiveAmount = amountLive;
+  o.dealSupplyAmount = amountSupply;
+  o.dealProfit = amountProfit;
+  o.dealAmount = (amountLive || 0) + (amountSupply || 0); // A9：合计=活体+用品，利润不参与
+  o.collected = false;
+  await updateItem('orders', req.params.id, o);
+  res.json({ success: true, order: o });
+});
+
+// ★ 增量：未到店（仅 appointed 可转 noshow，单向不回退）
+app.put('/api/orders/:id/noshow', requireAuth, requireRole('admin', 'finance'), async (req, res) => {
+  const o = await findById('orders', req.params.id);
+  if (!o) return res.status(404).json({ error: '不存在' });
+  if (deriveStatus(o) !== 'appointed') return res.status(400).json({ error: '仅已预约到店工单可标记未到店' });
+  o.status = 'noshow';
+  o.visitStatus = 'not_visited';
+  await updateItem('orders', req.params.id, o);
+  res.json({ success: true, order: o });
+});
+
+// ★ 增量：确认已收款（仅 deal 可转 collected；三价格必填才可完结）
+app.put('/api/orders/:id/collect', requireAuth, requireRole('admin', 'finance_collect'), async (req, res) => {
+  const o = await findById('orders', req.params.id);
+  if (!o) return res.status(404).json({ error: '不存在' });
+  if (deriveStatus(o) !== 'deal') return res.status(400).json({ error: '仅已成交工单可确认收款' });
+  const filled = v => v != null && v !== ''; // 0/负数视为已填，仅拦截 null/undefined/空串
+  if (!(filled(o.amountLive) && filled(o.amountSupply) && filled(o.amountProfit))) {
+    return res.status(400).json({ error: '请先填写活体/用品/利润三项价格' });
+  }
+  o.status = 'collected';
+  o.collected = true;
+  await updateItem('orders', req.params.id, o);
+  res.json({ success: true, order: o });
+});
+
+// ★ 增量：改价（失焦自动保存；仅 deal/collected 可改；三金额→双写+重算 dealAmount）
+app.put('/api/orders/:id/price', requireAuth, requireRole('admin', 'finance_collect'), async (req, res) => {
+  const o = await findById('orders', req.params.id);
+  if (!o) return res.status(404).json({ error: '不存在' });
+  const st = deriveStatus(o);
+  if (st !== 'deal' && st !== 'collected') return res.status(400).json({ error: '仅已成交工单可改价' });
+  const toNum = v => (v === undefined || v === null || v === '') ? null : (Number.isFinite(Number(v)) ? Number(v) : null);
+  const amountLive = toNum(req.body.amountLive);
+  const amountSupply = toNum(req.body.amountSupply);
+  const amountProfit = toNum(req.body.amountProfit);
+  if (amountLive === null && amountSupply === null && amountProfit === null) {
+    return res.status(400).json({ error: '请填写至少一个金额' });
+  }
+  if (amountLive !== null) { o.amountLive = amountLive; o.dealLiveAmount = amountLive; }
+  if (amountSupply !== null) { o.amountSupply = amountSupply; o.dealSupplyAmount = amountSupply; }
+  if (amountProfit !== null) { o.amountProfit = amountProfit; o.dealProfit = amountProfit; }
+  o.dealAmount = (o.amountLive || 0) + (o.amountSupply || 0); // A9：利润不参与合计
+  await updateItem('orders', req.params.id, o);
+  res.json({ success: true, order: o });
+});
+
+// ====== 卖场管理（★ 增量）======
+app.get('/api/stores', requireAuth, async (req, res) => {
+  let stores = await readAll('stores');
+  const city = String(req.query.city || '').trim();
+  if (city) stores = stores.filter(s => s.city === city);
+  stores.sort((a, b) => String(a.city || '').localeCompare(String(b.city || ''), 'zh-CN') || String(a.name || '').localeCompare(String(b.name || ''), 'zh-CN'));
+  res.json({ stores });
+});
+app.post('/api/stores', requireAuth, requireRole('admin'), async (req, res) => {
+  const city = normalizeCityName(req.body.city || '');
+  const name = String(req.body.name || '').trim();
+  if (!city || !name) return res.status(400).json({ error: '请填写城市和名称' });
+  const stores = await readAll('stores');
+  if (stores.find(s => s.city === city && s.name === name)) return res.status(400).json({ error: '卖场已存在' });
+  const store = { id: 's' + Date.now(), city, name };
+  await addItem('stores', store);
+  res.json({ success: true, store });
+});
+app.put('/api/stores/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  const s = await findById('stores', req.params.id);
+  if (!s) return res.status(404).json({ error: '不存在' });
+  if (req.body.city !== undefined && String(req.body.city).trim() !== '') s.city = normalizeCityName(req.body.city);
+  if (req.body.name !== undefined && String(req.body.name).trim() !== '') s.name = String(req.body.name).trim();
+  await updateItem('stores', req.params.id, s);
+  res.json({ success: true, store: s });
+});
+app.delete('/api/stores/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  const s = await findById('stores', req.params.id);
+  if (!s) return res.status(404).json({ error: '不存在' });
+  await removeItem('stores', req.params.id);
+  res.json({ success: true });
+});
+// 导入初始卖场：读 data/stores.json 合并（按 city+name 去重跳过）
+app.post('/api/stores/seed', requireAuth, requireRole('admin'), async (req, res) => {
+  let seed = [];
+  try {
+    seed = JSON.parse(fsSync.readFileSync(path.join(__dirname, 'data', 'stores.json'), 'utf-8'));
+  } catch (e) {
+    return res.status(500).json({ success: false, error: '读取种子文件失败' });
+  }
+  if (!Array.isArray(seed)) return res.status(500).json({ success: false, error: '种子文件格式错误' });
+  const stores = await readAll('stores');
+  const keySet = new Set(stores.map(s => s.city + '|' + s.name));
+  let added = 0, skipped = 0;
+  for (const item of seed) {
+    const city = normalizeCityName(item.city || '');
+    const name = String(item.name || '').trim();
+    if (!city || !name) { skipped++; continue; }
+    const key = city + '|' + name;
+    if (keySet.has(key)) { skipped++; continue; }
+    keySet.add(key);
+    await addItem('stores', { id: item.id || ('s' + Date.now() + '_' + added), city, name });
+    added++;
+  }
+  res.json({ success: true, added, skipped });
 });
 
 // Finance 确认到店
@@ -643,6 +917,7 @@ app.post('/api/orders/:id/visit', requireAuth, requireRole('admin', 'finance'), 
   const now = new Date().toISOString();
   o.visitStatus = visitStatus;
   if (visitStatus === 'visited') o.visitAt = now;
+  syncStatus(o); // ★ 增量：status 镜像同步（visited→deal，not_visited→noshow）
   await updateItem('orders', req.params.id, o);
   res.json({ success: true, order: o });
 });
@@ -656,6 +931,7 @@ app.post('/api/orders/:id/follow', requireAuth, requireRole('admin', 'sales'), a
   o.followCount = (o.followCount || 0) + 1; o.lastFollowAt = now; o.followNote = note || '';
   if (visitStatus === 'visited') { o.visitStatus = 'visited'; o.visitAt = now; }
   else if (visitStatus === 'not_visited') o.visitStatus = 'not_visited';
+  syncStatus(o); // ★ 增量：status 镜像同步
   await updateItem('orders', req.params.id, o);
   res.json({ success: true, order: o });
 });
@@ -689,12 +965,13 @@ app.post('/api/orders/:id/deal', requireAuth, requireRole('admin', 'finance'), a
     o.dealAmount = 0; o.dealLiveAmount = 0; o.dealSupplyAmount = 0;
   }
   o.dealAt = now; o.dealNote = note || '';
+  syncStatus(o); // ★ 增量：status 镜像同步（dealStatus closed → deal）
   await updateItem('orders', req.params.id, o);
   res.json({ success: true, order: o });
 });
 
 // Stats
-app.get('/api/stats', requireAuth, requireRole('admin'), async (req, res) => {
+app.get('/api/stats', requireAuth, requireRole('admin', 'finance_collect'), async (req, res) => {
   const orders = await readAllPaged('orders'); const now = new Date();
   const isT = d => { const dt = new Date(d); return dt.getFullYear()===now.getFullYear()&&dt.getMonth()===now.getMonth()&&dt.getDate()===now.getDate(); };
   const isW = d => { const dt=new Date(d); const day=now.getDay()||7; const mon=new Date(now); mon.setDate(now.getDate()-day+1); mon.setHours(0,0,0,0); return dt>=mon&&dt<=new Date(mon.getTime()+6*86400000); };
@@ -735,6 +1012,8 @@ app.get('/api/mapStats', requireAuth, requireRole('admin'), async (req, res) => 
 
     const todayVisited = orders.filter(o => o.visitStatus === 'visited' && bjDateKey(o.visitAt) === today).length;
     const todayClosed = orders.filter(o => o.dealStatus === 'closed' && bjDateKey(o.dealAt) === today).length;
+    // ★ 增量：今日新增客资 = 当日新建订单数量（按 createdAt 的北京自然日统计）
+    const todayNew = orders.filter(o => bjDateKey(o.createdAt) === today).length;
 
     const cm = {};
     const sm = {};
@@ -755,6 +1034,7 @@ app.get('/api/mapStats', requireAuth, requireRole('admin'), async (req, res) => 
     res.json({
       todayVisited,
       todayClosed,
+      todayNew,
       cityTop: Object.values(cm).sort((a, b) => b.orders - a.orders).slice(0, limit),
       salesTop: Object.values(sm).sort((a, b) => b.total - a.total).slice(0, limit), // 按订单总数倒序（非金额）
       updatedAt: new Date().toISOString(),
@@ -770,14 +1050,15 @@ app.get('/api/mapStats', requireAuth, requireRole('admin'), async (req, res) => 
 /**
  * 按查询条件过滤导出订单。
  * 日期按 createdAt 的北京自然日过滤（沿用旧实现口径，不按 dealAt，避免改变财务使用习惯）。
+ * 日期参数同时兼容 start/end（财务旧页、数据管理）与 df/dt（工单工作台导出）两套命名。
  * @param {Array<object>} orders 订单数组
  * @param {object} query Express req.query
  * @returns {Array<object>} 过滤后的订单
  */
 function applyExportFilters(orders, query) {
   let list = orders;
-  const start = String(query.start || '').trim();
-  const end = String(query.end || '').trim();
+  const start = String(query.start || query.df || '').trim();
+  const end = String(query.end || query.dt || '').trim();
   const dealStatus = String(query.dealStatus || '').trim();
   const salesPersonId = String(query.salesPersonId || '').trim();
   if (start) list = list.filter(o => bjDateKey(o.createdAt) >= start);
@@ -805,11 +1086,14 @@ function setXlsxHeaders(res, fileName, asciiName) {
 // 订单详单导出（P0-9）：admin + finance。
 // ★ 财务范围收敛为 visited|pending_visit，但**不过滤 dealStatus** —— 财务对账必须能导出已成交单。
 //   这与财务待办列表口径「故意不同」，切勿顺手对齐。
-app.get('/api/export/orders.xlsx', requireAuth, requireRole('admin', 'finance'), async (req, res) => {
+app.get('/api/export/orders.xlsx', requireAuth, requireRole('admin', 'finance', 'finance_collect'), async (req, res) => {
   try {
     let orders = await readAllPaged('orders');
     if (req.session.user.role === 'finance') {
       orders = orders.filter(o => o.visitStatus === 'visited' || o.visitStatus === 'pending_visit');
+    } else if (req.session.user.role === 'finance_collect') {
+      // ★ 增量：财务收款确认 只可导出其权限范围内的工单（已成交/已完结）
+      orders = orders.filter(o => ['deal', 'collected'].includes(deriveStatus(o)));
     }
     orders = applyExportFilters(orders, req.query);
     orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

@@ -1,6 +1,9 @@
 node_modules/
 data/*.json
+!data/stores.json
 data/backup/
 data-backup-/
+data-backup-*/
+.verify/
 .env
 *.log

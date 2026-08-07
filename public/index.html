@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>销售订单管理系统</title>
+<title>销售工单管理系统</title>
 <script src="/echarts.min.js"></script>
 <script>
 // Load China map geoJSON for city map (local fallback)
@@ -122,6 +122,10 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   table{font-size:11px}th,td{padding:7px 8px}
 }
 @media (min-width:769px){.mob-nav{display:none!important}}
+/* ===== 工单工作台（增量改造）===== */
+.wo-amt{width:88px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px;text-align:right}
+.wo-amt:focus{border-color:var(--accent);outline:none}
+.wo-amt::placeholder{color:var(--text3)}
 /* ============================================================
    T5 城市地图大屏（科技风）
    ⚠️ 硬约束：本区块所有选择器（含 @media 内部）必须以 #page-citymap 开头。
@@ -245,7 +249,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 
 <div class="login-page" id="loginPage" style="display:none">
   <div class="login-box">
-    <h2>销售订单管理系统</h2><div class="sub">登录你的账号开始工作</div>
+    <h2>销售工单管理系统</h2><div class="sub">登录你的账号开始工作</div>
     <div class="fg"><label>账号</label><input id="loginUser" placeholder="输入用户名"></div>
     <div class="fg"><label>密码</label><input type="password" id="loginPass" placeholder="输入密码"></div>
     <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="doLogin()">登 录</button>
@@ -255,7 +259,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 
 <div class="app" id="mainApp" style="display:none">
   <aside class="sidebar">
-    <div class="logo">销售订单管理</div>
+    <div class="logo">销售工单管理</div>
     <nav id="sidebarNav"></nav>
     <div class="user-info">
       <div class="user-avatar" id="sAvatar"></div>
@@ -265,7 +269,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
     </div>
   </aside>
   <div class="main">
-    <div class="header" style="justify-content:flex-start;gap:12px"><span style="cursor:pointer;font-weight:600;font-size:14px;color:var(--accent)" onclick="switchPage(me.role==='admin'?'dashboard':me.role==='sales'?'orders':'finance-follow')">首页</span><h1 id="pageTitle" style="border-left:1px solid var(--border);padding-left:12px"></h1><div class="header-actions" id="headerActions" style="margin-left:auto"></div></div>
+    <div class="header" style="justify-content:flex-start;gap:12px"><span style="cursor:pointer;font-weight:600;font-size:14px;color:var(--accent)" onclick="switchPage(homePage())">首页</span><h1 id="pageTitle" style="border-left:1px solid var(--border);padding-left:12px"></h1><div class="header-actions" id="headerActions" style="margin-left:auto"></div></div>
     <div class="content">
 
       <!-- Dashboard -->
@@ -273,13 +277,13 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
         <div class="tabs" id="dashTabs"></div>
         <div class="stat-grid" id="statGrid"></div>
         <div class="chart-row">
-          <div class="chart-box"><h3>近7天订单趋势</h3><div class="bar-chart" id="trendChart"></div></div>
-          <div class="chart-box"><h3>订单状态分布</h3><div class="bar-chart" id="statusChart"></div></div>
+          <div class="chart-box"><h3>近7天工单趋势</h3><div class="bar-chart" id="trendChart"></div></div>
+          <div class="chart-box"><h3>工单状态分布</h3><div class="bar-chart" id="statusChart"></div></div>
         </div>
         <div class="stat-grid" id="amtStatGrid" style="grid-template-columns:repeat(3,1fr)"></div>
         <div class="section">
           <div class="section-hd"><h3>销售排行（本月）</h3></div>
-          <div class="section-bd"><table><thead><tr><th>排名</th><th>销售</th><th>订单</th><th>到店</th><th>成交</th><th>活体金额</th><th>转化率</th></tr></thead><tbody id="rankTbl"></tbody></table></div>
+          <div class="section-bd"><table><thead><tr><th>排名</th><th>销售</th><th>工单</th><th>到店</th><th>成交</th><th>活体金额</th><th>转化率</th></tr></thead><tbody id="rankTbl"></tbody></table></div>
         </div>
       </div>
 
@@ -293,7 +297,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
           </div>
           <!-- R3：tabs / 全屏按钮移到右上角，不遮挡主标题 -->
           <div class="cm-hd">
-            <div class="cm-tabs"><button class="cm-tab active" data-maptype="orders">订单量</button><button class="cm-tab" data-maptype="visited">到店</button><button class="cm-tab" data-maptype="closed">成交</button></div>
+            <div class="cm-tabs"><button class="cm-tab active" data-maptype="orders">工单量</button><button class="cm-tab" data-maptype="visited">到店</button><button class="cm-tab" data-maptype="closed">成交</button></div>
             <div class="cm-ops"><button class="cm-btn" id="fsBtn" onclick="toggleFullscreen()">全屏</button></div>
           </div>
           <!-- R1：地图铺满，四个面板绝对定位浮在地图四角（无框） -->
@@ -304,19 +308,15 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
                 <div class="cm-kpis">
                   <div class="cm-kpi"><div class="n" id="cmTodayVisited">0</div><div class="t">今日到店</div></div>
                   <div class="cm-kpi k2"><div class="n" id="cmTodayClosed">0</div><div class="t">今日成交</div></div>
+                  <div class="cm-kpi k3"><div class="n" id="cmTodayNew">0</div><div class="t">今日新增客资</div></div>
                 </div>
               </div></div>
             </div>
-            <div class="cm-corner cm-tr">
-              <div class="cm-card"><h4>全局概览</h4><div class="cm-card-bd">
-                <div class="cm-sum"><span>覆盖城市<b id="cmCityCount">0</b></span><span>累计订单<b id="cmTotalOrders">0</b></span></div>
-              </div></div>
-            </div>
             <div class="cm-corner cm-bl">
-              <div class="cm-card"><h4>城市 TOP（订单量）</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmCityTop"></ul></div></div>
+              <div class="cm-card"><h4>城市 TOP</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmCityTop"></ul></div></div>
             </div>
             <div class="cm-corner cm-br">
-              <div class="cm-card"><h4>销售 TOP（按订单数）</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmSalesTop"></ul></div></div>
+              <div class="cm-card"><h4>销售 TOP</h4><div class="cm-card-bd"><ul class="cm-rank" id="cmSalesTop"></ul></div></div>
             </div>
             <!-- 四角放不下：容器隐藏但 DOM 保留，cmRank('cmClosedTop',...) 照常渲染不报错 -->
             <div class="cm-corner cm-hidden">
@@ -328,27 +328,27 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 
       <!-- Orders -->
       <div class="page" id="page-orders">
-        <div class="section"><div class="section-hd"><h3 id="ordersTitle">全部订单</h3><div class="search-row"><select id="filterStatus" onchange="loadOrders()"><option value="all">全部</option><option value="new">新建</option><option value="follow">跟进中</option><option value="visited">已到店</option><option value="not_visited">未到店</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select><input id="searchOrder" placeholder="搜索客户/订单号..." oninput="loadOrders()"></div></div>
-        <div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>来源</th><th>产品</th><th>销售</th><th>店铺</th><th>到店</th><th>成交</th><th>金额</th><th>操作</th></tr></thead><tbody id="ordersTbl"></tbody></table></div><div class="section-ft" id="ordersCount"></div></div>
+        <div class="section"><div class="section-hd"><h3 id="ordersTitle">全部工单</h3><div class="search-row"><select id="filterStatus" onchange="loadOrders()"><option value="all">全部</option><option value="new">新建</option><option value="follow">跟进中</option><option value="visited">已到店</option><option value="not_visited">未到店</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select><input id="searchOrder" placeholder="搜索电话/工单号..." oninput="loadOrders()"></div></div>
+        <div class="section-bd"><table><thead><tr><th>工单号</th><th>电话</th><th>城市</th><th>来源</th><th>产品</th><th>销售</th><th>店铺</th><th>到店</th><th>成交</th><th>金额</th><th>操作</th></tr></thead><tbody id="ordersTbl"></tbody></table></div><div class="section-ft" id="ordersCount"></div></div>
       </div>
 
       <!-- Sales Follow -->
-      <div class="page" id="page-sales-follow"><div class="section"><div class="section-hd"><h3>待跟进订单</h3></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>客户</th><th>电话</th><th>城市</th><th>来源</th><th>创建</th><th>跟进次数</th><th>最后跟进</th><th>操作</th></tr></thead><tbody id="salesFollowTbl"></tbody></table></div><div class="section-ft" id="salesFollowCount"></div></div></div>
+      <div class="page" id="page-sales-follow"><div class="section"><div class="section-hd"><h3>待跟进工单</h3></div><div class="section-bd"><table><thead><tr><th>工单号</th><th>电话</th><th>城市</th><th>来源</th><th>创建</th><th>跟进次数</th><th>最后跟进</th><th>操作</th></tr></thead><tbody id="salesFollowTbl"></tbody></table></div><div class="section-ft" id="salesFollowCount"></div></div></div>
 
       <!-- Finance：★ 已成交订单保留在列表内（补充需求），不做移除/折叠 -->
-      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>成交管理</h3><div class="search-row"><input type="date" id="fDateFrom"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="fDateTo"><select id="fDealFilter" onchange="loadFinanceFollow()"><option value="all">全部</option><option value="pending">待确认</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select><button class="btn btn-sm btn-outline" onclick="loadFinanceFollow()">筛选</button><button class="btn btn-sm btn-primary" onclick="downloadFinanceOrders()">导出Excel</button></div></div><div class="section-bd"><table><thead><tr><th>订单号</th><th>日期</th><th>客户</th><th>电话</th><th>城市</th><th>到店</th><th>成交</th><th>金额</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
+      <div class="page" id="page-finance-follow"><div class="section"><div class="section-hd"><h3>成交管理</h3><div class="search-row"><input type="date" id="fDateFrom"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="fDateTo"><select id="fDealFilter" onchange="loadFinanceFollow()"><option value="all">全部</option><option value="pending">待确认</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select><button class="btn btn-sm btn-outline" onclick="loadFinanceFollow()">筛选</button><button class="btn btn-sm btn-primary" onclick="downloadFinanceOrders()">导出Excel</button></div></div><div class="section-bd"><table><thead><tr><th>工单号</th><th>日期</th><th>电话</th><th>城市</th><th>到店</th><th>成交</th><th>金额</th><th>销售</th><th>店铺</th><th>备注</th><th>操作</th></tr></thead><tbody id="financeTbl"></tbody></table></div><div class="section-ft" id="financeCount"></div></div></div>
 
       <!-- Accounts -->
       <div class="page" id="page-accounts"><div class="section"><div class="section-hd"><h3>账号管理</h3><button class="btn btn-primary btn-sm" onclick="openUserCreate()">+ 新建销售账号</button></div><div class="section-bd"><table><thead><tr><th>用户名</th><th>姓名</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="usersTbl"></tbody></table></div><div class="section-ft">财务账号不可删除，只能编辑</div></div></div>
 
       <!-- Data Tools（管理员数据管理面板） -->
       <div class="page" id="page-datatools">
-        <div class="section"><div class="section-hd"><h3>订单数据导出</h3></div>
+        <div class="section"><div class="section-hd"><h3>工单数据导出</h3></div>
           <div class="section-bd" style="padding:16px">
             <div class="search-row" style="margin-bottom:10px">
               <input type="date" id="exDateFrom" style="flex:0 0 auto"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="exDateTo" style="flex:0 0 auto">
               <select id="exDealStatus"><option value="">全部成交状态</option><option value="pending">待确认</option><option value="closed">已成交</option><option value="not_closed">未成交</option></select>
-              <button class="btn btn-sm btn-primary" onclick="exportOrdersXlsx()">导出订单 Excel</button>
+              <button class="btn btn-sm btn-primary" onclick="exportOrdersXlsx()">导出工单 Excel</button>
               <button class="btn btn-sm btn-outline" onclick="exportData()">备份全量 JSON</button>
             </div>
             <div class="hint" style="font-size:11px;color:var(--text3)">导出为 .xlsx，共 19 列（含活体/用品/合计/利润，金额为数值可直接求和），日期按创建时间的北京自然日过滤。</div>
@@ -364,10 +364,26 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
               1. 仅支持模板导出的 .xlsx（≤5MB），「用户」页角色只能填 <b>销售 / 财务</b>；<br>
               2. 「初始密码」留空将自动使用默认密码 <b>123456</b>，导入后请提醒相关同事及时改密；<br>
               3. 采用<b>先全量校验、后写库</b>策略：任意一行不合规则整份拒绝，不会写入半份数据；<br>
-              4. 导入前系统会<b>自动生成服务端回滚快照</b>；若备份失败将中止导入以保护数据。建议同时点击「备份全量 JSON」下载一份到本地。账号按用户名、订单按订单编号去重跳过。
+              4. 导入前系统会<b>自动生成服务端回滚快照</b>；若备份失败将中止导入以保护数据。建议同时点击「备份全量 JSON」下载一份到本地。账号按用户名、工单按工单号去重跳过。
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- 工单工作台（销售/财务/财务收款确认 三角色共用一套 Tab 组件，按角色渲染不同 Tab 集） -->
+      <div class="page" id="page-workorders">
+        <div class="tabs" id="woTabs"></div>
+        <div class="section">
+          <div class="section-hd"><div class="search-row" style="flex:1"><input id="woSearch" placeholder="搜索电话/工单号..." oninput="woSearchChange(this.value)"></div><div id="woCollectExport"></div></div>
+          <div class="section-bd"><table><thead id="woThead"></thead><tbody id="woTbl"></tbody></table></div>
+          <div class="section-ft" id="woCount"></div>
+        </div>
+      </div>
+
+      <!-- 卖场管理（管理员） -->
+      <div class="page" id="page-stores">
+        <div class="section"><div class="section-hd"><h3>卖场管理</h3><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="seedStores()">导入初始卖场</button><button class="btn btn-sm btn-primary" onclick="openStoreCreate()">+ 新增卖场</button></div></div>
+        <div class="section-bd"><table><thead><tr><th>城市</th><th>名称</th><th>操作</th></tr></thead><tbody id="storesTbl"></tbody></table></div><div class="section-ft" id="storesCount"></div></div>
       </div>
 
     </div>
@@ -376,9 +392,8 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 </div>
 
 <!-- Order Modal -->
-<div class="modal-overlay" id="orderModal"><div class="modal"><div class="modal-hd"><h3 id="modalTitle">新建订单</h3><button class="modal-close" onclick="closeM('orderModal')">&times;</button></div>
+<div class="modal-overlay" id="orderModal"><div class="modal"><div class="modal-hd"><h3 id="modalTitle">新建工单</h3><button class="modal-close" onclick="closeM('orderModal')">&times;</button></div>
 <div class="modal-bd"><input type="hidden" id="editOid">
-<div class="fg"><label>客户姓名 *</label><div class="d-flex" style="margin-bottom:4px"><select id="ocGender" style="width:80px;padding:7px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-size:12px" onchange="onGenderChange()"><option value="">先生/女士</option><option value="先生">先生</option><option value="女士">女士</option></select><input id="ocName" placeholder="请输入客户姓名" style="flex:1"></div><div class="hint">不填姓名时自动使用先生/女士</div></div>
 <div class="fg"><label>联系电话 *</label><input id="ocPhone" placeholder="请输入联系电话" onblur="lookupCity()"></div>
 <div class="fg" style="display:flex;gap:10px">
   <div style="flex:1"><label>城市</label><input id="ocCity" placeholder="自动识别"><div class="hint" style="color:var(--accent)">电话输入后自动填入</div></div>
@@ -404,7 +419,7 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <!-- Deal Modal -->
 <div class="modal-overlay" id="dealModal"><div class="modal"><div class="modal-hd"><h3>确认成交 - <span id="dcName"></span></h3><button class="modal-close" onclick="closeM('dealModal')">&times;</button></div>
 <div class="modal-bd"><input type="hidden" id="dOid">
-<div id="dVisitTip" style="display:none;font-size:11px;color:var(--orange);background:var(--orange-bg);border-radius:var(--rs);padding:8px 10px;margin-bottom:12px">该订单当前为「即将到店」，确认成交后将同时标记为<b>已到店</b>。</div>
+<div id="dVisitTip" style="display:none;font-size:11px;color:var(--orange);background:var(--orange-bg);border-radius:var(--rs);padding:8px 10px;margin-bottom:12px">该工单当前为「即将到店」，确认成交后将同时标记为<b>已到店</b>。</div>
 <div class="fg"><label>成交状态</label><select id="dStatus" onchange="toggleAmtSplit()"><option value="closed">已成交</option><option value="not_closed">未成交</option></select></div>
 <div id="dAmtSplit" class="amt-split">
   <h4>成交金额明细</h4>
@@ -428,12 +443,68 @@ td{padding:10px 12px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <div class="modal-bd"><input type="hidden" id="editUid">
 <div class="fg"><label>用户名 *</label><input id="uUser"></div>
 <div class="fg"><label>姓名 *</label><input id="uName"></div>
+<div class="fg"><label>角色 *</label><select id="uRole"><option value="sales">销售</option><option value="finance">财务</option><option value="finance_collect">财务收款确认</option></select></div>
 <div class="fg"><label>密码 <span id="uPwLabel">*</span></label><input type="text" id="uPass"></div>
 </div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('userModal')">取消</button><button class="btn btn-primary" onclick="saveUser()">保存</button></div></div></div>
+
+<!-- 新建工单 Modal（★ 增量：不采集客户姓名） -->
+<div class="modal-overlay" id="woModal"><div class="modal"><div class="modal-hd"><h3>新建工单</h3><button class="modal-close" onclick="closeM('woModal')">&times;</button></div>
+<div class="modal-bd">
+<div class="fg"><label>客户电话 *</label><input id="wcPhone" placeholder="请输入客户电话" oninput="lookupCityWO()" onblur="lookupCityWO()"></div>
+<div class="fg"><label>城市</label><input id="wcCity" list="wcCityList" placeholder="电话输入后自动识别，可手改" oninput="onWcCityChange()"><div class="hint" id="wcCityHint" style="color:var(--accent)">电话输入后自动填入</div></div>
+<datalist id="wcCityList"></datalist>
+<div class="fg"><label>意向品种 *</label><input id="wcProduct" placeholder="请输入意向品种"></div>
+<div class="fg"><label>预约卖场</label><select id="wcStore" onchange="onWcStoreChange()"><option value="__other__">其他（手动输入）</option></select><input id="wcStoreCustom" placeholder="输入卖场名称" style="display:none;margin-top:6px"></div>
+<div class="fg"><label>客资来源</label><select id="wcSource" onchange="onWcSourceChange()"><option value="美团">美团</option><option value="百度">百度</option><option value="高德">高德</option><option value="__other__">其他</option></select><input id="wcSourceCustom" placeholder="输入来源" style="display:none;margin-top:6px"></div>
+<div class="fg"><label>备注</label><textarea id="wcNote" placeholder="在冒号后直接填写，如：预计多久到：10分钟"></textarea></div>
+</div>
+<div class="modal-ft"><button class="btn btn-outline" onclick="closeM('woModal')">取消</button><button class="btn btn-primary" onclick="saveWO()">保存</button></div></div></div>
+
+<!-- 已到店 Modal（财务：填 活体/用品/利润，均可手填非必填） -->
+<div class="modal-overlay" id="arriveModal"><div class="modal"><div class="modal-hd"><h3>确认已到店 - <span id="arrName"></span></h3><button class="modal-close" onclick="closeM('arriveModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="arrOid">
+<div class="fg"><label>活体金额</label><input id="arrLive" type="number" step="0.01" placeholder="0"></div>
+<div class="fg"><label>用品金额</label><input id="arrSupply" type="number" step="0.01" placeholder="0"></div>
+<div class="fg"><label>利润</label><input id="arrProfit" type="number" step="0.01" placeholder="0"><div class="hint">均可手填、非必填；利润可为负数（亏损单）。合计 = 活体 + 用品。</div></div>
+</div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('arriveModal')">取消</button><button class="btn btn-primary" onclick="saveArrive()">确认已到店</button></div></div></div>
+
+<!-- 卖场 Modal（管理员） -->
+<div class="modal-overlay" id="storeModal"><div class="modal"><div class="modal-hd"><h3 id="storeModalTitle">新增卖场</h3><button class="modal-close" onclick="closeM('storeModal')">&times;</button></div>
+<div class="modal-bd"><input type="hidden" id="editSid">
+<div class="fg"><label>城市 *</label><input id="sCity" placeholder="如 武汉 / 兰州"></div>
+<div class="fg"><label>名称 *</label><input id="sName" placeholder="请输入卖场名称"></div>
+</div><div class="modal-ft"><button class="btn btn-outline" onclick="closeM('storeModal')">取消</button><button class="btn btn-primary" onclick="saveStore()">保存</button></div></div></div>
 
 <script>
 let me = null, currentPage = 'dashboard', dashPeriod = 'today', mapType = 'orders';
 let suggestions = {sources:{fixed:[],smart:[]},products:{fixed:[],smart:[]},stores:{fixed:[],smart:[]}};
+let woTab = 'pending', woSearch = '';
+
+// ★ 增量：角色中文映射（新增 finance_collect 财务收款确认）
+const ROLE_CN = {admin:'管理员',sales:'销售',finance:'财务',finance_collect:'财务收款确认'};
+// ★ 增量：工单工作台 Tab 定义（三角色共用一套组件，按角色渲染不同 Tab 集）
+const WO_TABS = {
+  sales: [{key:'pending',label:'待处理工单'},{key:'appointed',label:'已预约到店工单'},{key:'all',label:'所有工单'}],
+  finance: [{key:'appointed',label:'待处理'},{key:'noshow',label:'未到店'},{key:'deal',label:'已成交'},{key:'all',label:'所有工单'}],
+  finance_collect: [{key:'pending',label:'待处理'},{key:'all',label:'所有工单'}],
+};
+const WO_STATUS_CN = {pending:'待处理',appointed:'已预约到店',deal:'已成交',collected:'已完结',noshow:'未到店'};
+const WO_STATUS_BADGE = {pending:['b-pending','待处理'],appointed:['b-follow','已预约到店'],deal:['b-closed','已成交'],collected:['b-closed','已完结'],noshow:['b-nvisit','未到店']};
+// ★ 增量：新建工单备注预填模板（用户直接在冒号后填写；未填写则保存时置空不落库）
+const WO_NOTE_TEMPLATE = '预计多久到：\n大概报价：';
+// ★ 增量：前端 5 态推导（与后端 deriveStatus 一致，兼容历史数据）
+function deriveStatus(o){
+  if(!o)return 'pending';
+  if(o.status&&['pending','appointed','deal','collected','noshow'].includes(o.status))return o.status;
+  if(o.collected===true)return 'collected';
+  if(o.dealStatus==='closed')return 'deal';
+  if(o.visitStatus==='not_visited')return 'noshow';
+  if(o.visitStatus==='visited')return 'deal';
+  if(o.visitStatus==='pending_visit')return 'appointed';
+  return 'pending';
+}
+function homePage(){return me&&(me.role==='sales'||me.role==='finance'||me.role==='finance_collect')?'workorders':'dashboard'}
+function woDefaultTab(){return me.role==='finance'?'appointed':'pending'}
 
 function fmt(d){if(!d)return'-';const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`}
 function fm(n){return n!=null?'¥'+Number(n).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}):'-'}
@@ -443,7 +514,7 @@ function api(method,url,data){return fetch(url,{method,headers:data?{'Content-Ty
 // Auth
 async function checkAuth(){try{const res=await api('GET','/api/auth/me');if(res.user){me=res.user;showApp();return true}}catch(e){}showLogin();return false}
 function showLogin(){document.getElementById('loginPage').style.display='flex';document.getElementById('mainApp').style.display='none';me=null}
-function showApp(){document.getElementById('loginPage').style.display='none';document.getElementById('mainApp').style.display='flex';document.getElementById('sAvatar').textContent=me.name[0];document.getElementById('sName').textContent=me.name;document.getElementById('sRole').textContent={admin:'管理员',sales:'销售',finance:'财务'}[me.role]||'';buildNav();switchPage(currentPage)}
+function showApp(){document.getElementById('loginPage').style.display='none';document.getElementById('mainApp').style.display='flex';document.getElementById('sAvatar').textContent=me.name[0];document.getElementById('sName').textContent=me.name;document.getElementById('sRole').textContent=ROLE_CN[me.role]||'';buildNav();switchPage(homePage())}
 async function doLogin(){const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;if(!u||!p){document.getElementById('loginError').textContent='请输入账号和密码';document.getElementById('loginError').style.display='block';return}try{const res=await api('POST','/api/auth/login',{username:u,password:p});if(res.success){me=res.user;showApp()}else{showLoginError(res.error||'登录失败')}}catch(e){showLoginError('账号或密码错误')}}
 function showLoginError(m){const e=document.getElementById('loginError');e.textContent=m;e.style.display='block'}
 async function doLogout(){await api('POST','/api/auth/logout').catch(()=>{});showLogin()}
@@ -452,9 +523,10 @@ document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='
 // Nav
 function buildNav(){
   const r=me.role,items=[];
-  if(r==='admin')items.push({p:'dashboard',l:'销售看板'},{p:'citymap',l:'城市地图'},{p:'orders',l:'订单管理'},{p:'sales-follow',l:'销售跟进'},{p:'finance-follow',l:'财务跟进'},{p:'accounts',l:'账号管理'},{p:'datatools',l:'数据管理'});
-  else if(r==='sales')items.push({p:'orders',l:'我的订单'},{p:'sales-follow',l:'跟进客户'});
-  else if(r==='finance')items.push({p:'finance-follow',l:'确认成交'});
+  if(r==='admin')items.push({p:'dashboard',l:'销售看板'},{p:'citymap',l:'城市地图'},{p:'orders',l:'工单管理'},{p:'sales-follow',l:'销售跟进'},{p:'finance-follow',l:'财务跟进'},{p:'accounts',l:'账号管理'},{p:'datatools',l:'数据管理'},{p:'stores',l:'卖场管理'});
+  else if(r==='sales'||r==='finance')items.push({p:'workorders',l:'工单工作台'});
+  // ★ 增量：财务收款确认 增加「销售看板」入口，同时保留「工单工作台」
+  else if(r==='finance_collect')items.push({p:'dashboard',l:'销售看板'},{p:'workorders',l:'工单工作台'});
   document.getElementById('sidebarNav').innerHTML=items.map(i=>`<div class="nav-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('');
   document.getElementById('mobNav').innerHTML=items.map(i=>`<div class="mob-item${i.p===currentPage?' active':''}" data-page="${i.p}" onclick="switchPage('${i.p}')">${i.l}</div>`).join('')+'<div class="mob-item" onclick="doLogout()" style="color:var(--red)">退出</div>';
 }
@@ -465,10 +537,11 @@ function switchPage(page){
   const pg=document.getElementById('page-'+page);if(pg)pg.classList.add('active');
   document.querySelectorAll('.nav-item,.mob-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll(`[data-page="${page}"]`).forEach(n=>n.classList.add('active'));
-  document.getElementById('pageTitle').textContent={dashboard:'销售看板',citymap:'城市地图',orders:'订单管理','sales-follow':'销售跟进','finance-follow':'成交管理',accounts:'账号管理',datatools:'数据管理'}[page]||'';
+  document.getElementById('pageTitle').textContent={dashboard:'销售看板',citymap:'城市地图',orders:'工单管理','sales-follow':'销售跟进','finance-follow':'成交管理',accounts:'账号管理',datatools:'数据管理',workorders:'工单工作台',stores:'卖场管理'}[page]||'';
   const ah=document.getElementById('headerActions');
   if(page==='dashboard'&&me.role==='admin')ah.innerHTML='<button class="btn btn-sm btn-outline" onclick="switchPage(\'datatools\')">数据管理</button>';
-  else if((page==='orders'||page==='sales-follow')&&(me.role==='admin'||me.role==='sales'))ah.innerHTML='<button class="btn btn-sm btn-primary" onclick="openOrderCreate()">+ 新建订单</button>';
+  else if(page==='workorders'&&me.role==='sales')ah.innerHTML='<button class="btn btn-sm btn-primary" onclick="openWO()">+ 新建工单</button>';
+  else if((page==='orders'||page==='sales-follow')&&(me.role==='admin'||me.role==='sales'))ah.innerHTML='<button class="btn btn-sm btn-primary" onclick="openOrderCreate()">+ 新建工单</button>';
   else ah.innerHTML='';
   if(page!=='citymap'&&mapFullscreen)exitFullscreen();
   if(page==='dashboard')loadDashboard();
@@ -476,14 +549,16 @@ function switchPage(page){
   if(page==='orders')loadOrders();
   if(page==='sales-follow')loadSalesFollow();
   if(page==='finance-follow')loadFinanceFollow();
+  if(page==='workorders'){woTab=woDefaultTab();loadWorkOrders();}
   if(page==='accounts')loadUsers();
+  if(page==='stores')loadStores();
 }
 
 // City lookup
 async function lookupCity(){
   const phone=document.getElementById('ocPhone').value.trim();
   if(phone.length<7)return;
-  try{const r=await api('GET','/api/phoneCity?phone='+encodeURIComponent(phone));if(r.city)document.getElementById('ocCity').value=r.city;loadStores(r.city)}catch(e){}
+  try{const r=await api('GET','/api/phoneCity?phone='+encodeURIComponent(phone));if(r.city)document.getElementById('ocCity').value=r.city;loadStoresByCity(r.city)}catch(e){}
 }
 
 // Smart fields
@@ -505,7 +580,7 @@ function buildStoreSelect(){
   [...suggestions.stores.fixed,...suggestions.stores.smart.map(x=>x.name)].forEach(x=>{s.innerHTML+=`<option value="${x}">${x}</option>`});
   s.innerHTML+='<option value="__other__">其他（手动输入）</option>';
 }
-async function loadStores(city){await loadSuggestions(city)}
+async function loadStoresByCity(city){await loadSuggestions(city)}
 function onSourceChange(){const v=document.getElementById('ocSource').value;document.getElementById('ocSourceCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('ocSourceCustom').focus()}
 function onProductChange(){const v=document.getElementById('ocProduct').value;document.getElementById('ocProductCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('ocProductCustom').focus()}
 function onStoreChange(){const v=document.getElementById('ocStore').value;document.getElementById('ocStoreCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('ocStoreCustom').focus()}
@@ -514,19 +589,19 @@ function gv(el,v){const s=document.getElementById(el);if(s.value==='__other__')r
 // Orders
 async function openOrderCreate(editId){
   await loadSuggestions(document.getElementById('ocCity')?.value||'');
-  document.getElementById('modalTitle').textContent=editId?'编辑订单':'新建订单';
+  document.getElementById('modalTitle').textContent=editId?'编辑工单':'新建工单';
   document.getElementById('editOid').value=editId||'';
   if(editId){
     try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===editId);if(o){
-      document.getElementById('ocName').value=o.custName;document.getElementById('ocGender').value='';document.getElementById('ocPhone').value=o.custPhone;
+      document.getElementById('ocPhone').value=o.custPhone;
       document.getElementById('ocCity').value=o.custCity||'';
       setSelect('ocSource',o.custSource);setSelect('ocProduct',o.custProduct);setSelect('ocStore',o.storeAddress);
       document.getElementById('ocNote').value=o.custNote||'';
       onSourceChange();onProductChange();onStoreChange();
-      loadStores(o.custCity);
+      loadStoresByCity(o.custCity);
     }}catch(e){}
   }else{
-    document.getElementById('ocGender').value='';document.getElementById('ocName').value='';document.getElementById('ocPhone').value='';document.getElementById('ocCity').value='';
+    document.getElementById('ocPhone').value='';document.getElementById('ocCity').value='';
     document.getElementById('ocSource').value='美团';document.getElementById('ocProduct').value='__other__';document.getElementById('ocStore').value='__other__';
     document.getElementById('ocNote').value='预计多久到：\n大概报价：';
     document.getElementById('ocSourceCustom').value='';document.getElementById('ocProductCustom').value='';document.getElementById('ocStoreCustom').value='';
@@ -540,21 +615,17 @@ function setSelect(id,val){
   s.value='__other__';document.getElementById(id+'Custom').value=val||'';
 }
 async function saveOrder(){
-  const gender=document.getElementById('ocGender').value;
-  let custName=document.getElementById('ocName').value.trim();
-  if(!custName&&gender)custName=gender;
   const custPhone=document.getElementById('ocPhone').value.trim();
   if(!custPhone){alert('请填写联系电话');return}
-  if(!custName){alert('请填写客户姓名或选择先生/女士');return}
-  const data={custName,custPhone,custCity:document.getElementById('ocCity').value.trim(),custSource:gv('ocSource','ocSource'),storeAddress:gv('ocStore','ocStore'),custProduct:gv('ocProduct','ocProduct'),custNote:document.getElementById('ocNote').value.trim()};
+  const data={custName:'',custPhone,custCity:document.getElementById('ocCity').value.trim(),custSource:gv('ocSource','ocSource'),storeAddress:gv('ocStore','ocStore'),custProduct:gv('ocProduct','ocProduct'),custNote:document.getElementById('ocNote').value.trim()};
   const eid=document.getElementById('editOid').value;
   try{await api(eid?'PUT':'POST',eid?'/api/orders/'+eid:'/api/orders',data);closeM('orderModal');refreshCurrent()}catch(e){alert('保存失败')}
 }
 
-async function reportOrder(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【位置】：'+(o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');await navigator.clipboard.writeText(text);await api('POST','/api/orders/'+oid+'/report',{});alert('已复制，状态已改为即将到店');refreshCurrent()}catch(e){alert('报单失败')}}
+async function reportOrder(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【卖场】：'+(o.store||o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');await navigator.clipboard.writeText(text);await api('POST','/api/orders/'+oid+'/report',{});alert('工单信息已复制去微信报单吧');refreshCurrent()}catch(e){alert('报单失败')}}
 
 // Follow
-async function openFollow(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('fOid').value=oid;document.getElementById('fcName').textContent=o.custName;document.getElementById('fNote').value='';document.getElementById('fVisit').value='';document.getElementById('followModal').classList.add('show')}catch(e){}}
+async function openFollow(oid){try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;document.getElementById('fOid').value=oid;document.getElementById('fcName').textContent=o.custName||'-';document.getElementById('fNote').value='';document.getElementById('fVisit').value='';document.getElementById('followModal').classList.add('show')}catch(e){}}
 async function saveFollow(){try{await api('POST','/api/orders/'+document.getElementById('fOid').value+'/follow',{note:document.getElementById('fNote').value.trim(),visitStatus:document.getElementById('fVisit').value||null});closeM('followModal');refreshCurrent()}catch(e){alert('操作失败')}}
 
 // ⚠️ openVisit / saveVisit / copyVisitInfo 已随变更 2 删除：
@@ -568,7 +639,7 @@ function calcAmtTotal(){const l=parseFloat(document.getElementById('dLiveAmt').v
 async function openDeal(oid){
   try{const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);if(!o)return;
   document.getElementById('dOid').value=oid;
-  document.getElementById('dcName').textContent=o.custName;
+  document.getElementById('dcName').textContent=o.custName||'-';
   document.getElementById('dStatus').value='closed';
   document.getElementById('dLiveAmt').value='';document.getElementById('dSupplyAmt').value='';document.getElementById('dProfit').value='';
   document.getElementById('dNote').value='';
@@ -592,28 +663,273 @@ async function saveDeal(){
 async function copyOrderInfo(oid){
   try{
     const r=await api('GET','/api/orders');const o=r.orders.find(x=>x.id===oid);
-    if(!o){alert('订单不存在');return}
-    const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【位置】：'+(o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');
+    if(!o){alert('工单不存在');return}
+    const text='【日期】：'+new Date().toISOString().slice(0,10)+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【卖场】：'+(o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');
     await navigator.clipboard.writeText(text);
-    alert('订单信息已复制到剪贴板');
+    alert('工单信息已复制到剪贴板');
   }catch(e){alert('复制失败，请检查浏览器剪贴板权限')}
+}
+
+// ====== ★ 增量：工单工作台（page-workorders，销售/财务/财务收款确认 三角色共用）======
+function setWoTab(k){woTab=k;loadWorkOrders()}
+function woSearchChange(v){woSearch=v;loadWorkOrders()}
+function woFilter(o){
+  const st=deriveStatus(o);
+  if(woTab==='all')return true;
+  if(me.role==='sales'){if(woTab==='pending')return st==='pending';if(woTab==='appointed')return st==='appointed';return true}
+  if(me.role==='finance'){if(woTab==='appointed')return st==='appointed';if(woTab==='noshow')return st==='noshow';if(woTab==='deal')return st==='deal';return true}
+  if(me.role==='finance_collect'){if(woTab==='pending')return st==='deal'&&!o.collected;return true}
+  return true;
+}
+async function loadWorkOrders(){
+  if(!me)return;
+  try{
+    const r=await api('GET','/api/orders');
+    let orders=r.orders.filter(woFilter);
+    const kw=(woSearch||'').toLowerCase();
+    if(kw)orders=orders.filter(o=>String(o.custPhone||'').toLowerCase().includes(kw)||String(o.workOrderNo||o.orderNo||'').toLowerCase().includes(kw));
+    orders.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    const isSales=me.role==='sales',isFin=me.role==='finance',isCol=me.role==='finance_collect';
+    document.getElementById('woTabs').innerHTML=(WO_TABS[me.role]||[]).map(t=>`<button class="tab${t.key===woTab?' active':''}" onclick="setWoTab('${t.key}')">${t.label}</button>`).join('');
+    const ah=document.getElementById('headerActions');
+    ah.innerHTML=isSales?'<button class="btn btn-sm btn-primary" onclick="openWO()">+ 新建工单</button>':'';
+    // ★ 增量：财务收款确认 在工单工作台顶部显示「日期从/至 + 导出Excel」（仅导出其权限范围内的已成交/已完结工单）
+    const woExport=document.getElementById('woCollectExport');
+    if(woExport)woExport.innerHTML=isCol
+      ?'<div class="search-row" style="flex:0 0 auto"><span style="color:var(--text2);font-size:12px">日期</span><input type="date" id="wcDateFrom"><span style="color:var(--text2);font-size:12px">至</span><input type="date" id="wcDateTo"><button class="btn btn-sm btn-primary" onclick="exportCollectOrders()">导出Excel</button></div>'
+      :'';
+    const stBadge=o=>{const m=WO_STATUS_BADGE[deriveStatus(o)]||['b-pending','待处理'];return `<span class="badge ${m[0]}">${m[1]}</span>`};
+    let th='<tr><th>客户电话</th><th>城市</th><th>意向品种</th><th>操作</th><th>工单状态</th><th>工单号</th>';
+    if(isCol)th+='<th>活体</th><th>用品</th><th>利润</th>';
+    th+='<th>备注</th></tr>';
+    const rows=orders.map(o=>{
+      const st=deriveStatus(o);
+      let act='';
+      if(isSales&&(st==='pending'||st==='appointed'))act+=`<button class="btn btn-sm btn-primary" onclick="reportWO('${o.id}')">一键预约到店</button>`;
+      if(isFin&&st==='appointed'){
+        act+=`<button class="btn btn-sm btn-warning" onclick="noshowWO('${o.id}')">未到店</button>`;
+        act+=`<button class="btn btn-sm btn-success" onclick="openArrive('${o.id}')">已到店</button>`;
+      }
+      if(isFin&&st==='noshow'){
+        act+=`<button class="btn btn-sm btn-success" onclick="openArrive('${o.id}')">已到店</button>`;
+      }
+      if(isCol&&st==='deal'&&!o.collected){
+        const amtOk=o.amountLive!=null&&o.amountLive!==''&&o.amountSupply!=null&&o.amountSupply!==''&&o.amountProfit!=null&&o.amountProfit!=='';
+        act+=amtOk?`<button class="btn btn-sm btn-success" onclick="collectWO('${o.id}')">确认已收款</button>`:`<button class="btn btn-sm btn-success" disabled title="请先填齐活体/用品/利润三项价格">确认已收款</button>`;
+      }
+      let amtCols='';
+      if(isCol){
+        amtCols=`<td><input class="wo-amt" type="number" step="0.01" placeholder="0" value="${o.amountLive===null||o.amountLive===undefined?'':o.amountLive}" data-id="${o.id}" data-field="amountLive" onblur="savePrice(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`
+          +`<td><input class="wo-amt" type="number" step="0.01" placeholder="0" value="${o.amountSupply===null||o.amountSupply===undefined?'':o.amountSupply}" data-id="${o.id}" data-field="amountSupply" onblur="savePrice(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`
+          +`<td><input class="wo-amt" type="number" step="0.01" placeholder="0" value="${o.amountProfit===null||o.amountProfit===undefined?'':o.amountProfit}" data-id="${o.id}" data-field="amountProfit" onblur="savePrice(this)" onkeydown="if(event.key==='Enter')this.blur()"></td>`;
+      }
+      return `<tr><td style="font-size:11px">${o.custPhone||'-'}</td><td>${o.custCity||'-'}</td><td>${o.custProduct||'-'}</td><td><div class="d-flex">${act||'<span style="color:var(--text3);font-size:11px">-</span>'}</div></td><td>${stBadge(o)}</td><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.workOrderNo||o.orderNo||'-'}</td>${amtCols}<td style="font-size:11px">${o.custNote||'-'}</td></tr>`;
+    }).join('');
+    document.getElementById('woThead').innerHTML=th;
+    document.getElementById('woTbl').innerHTML=rows||`<tr><td colspan="${isCol?10:7}" class="empty">暂无工单</td></tr>`;
+    document.getElementById('woCount').textContent=`共 ${orders.length} 条`;
+  }catch(e){}
+}
+
+// 新建工单（不采集客户姓名）
+async function openWO(){
+  document.getElementById('wcPhone').value='';document.getElementById('wcCity').value='';
+  document.getElementById('wcProduct').value='';document.getElementById('wcNote').value=WO_NOTE_TEMPLATE;
+  document.getElementById('wcSource').value='美团';document.getElementById('wcSourceCustom').value='';
+  document.getElementById('wcStore').innerHTML='<option value="__other__">其他（手动输入）</option>';
+  document.getElementById('wcStoreCustom').value='';document.getElementById('wcStoreCustom').style.display='none';
+  document.getElementById('wcSourceCustom').style.display='none';
+  const wcHint=document.getElementById('wcCityHint');if(wcHint)wcHint.textContent='电话输入后自动填入';
+  document.getElementById('woModal').classList.add('show');
+  loadCityList(); // 异步填充城市下拉兜底（不阻塞弹窗打开）
+}
+async function lookupCityWO(){
+  const phone=document.getElementById('wcPhone').value.trim();
+  if(phone.length<7)return;
+  const hint=document.getElementById('wcCityHint');
+  try{
+    const r=await api('GET','/api/phoneCity?phone='+encodeURIComponent(phone));
+    if(r.city){
+      document.getElementById('wcCity').value=r.city;
+      if(hint)hint.textContent='电话输入后自动填入';
+      loadStoreOptions(r.city);
+    }else{
+      if(hint)hint.textContent='未能识别，请从下拉选择或手动输入城市';
+    }
+  }catch(e){}
+}
+// 手动输入/修改城市 → 立即联动刷新卖场下拉（保证卖场必可预选）
+function onWcCityChange(){
+  const city=document.getElementById('wcCity').value.trim();
+  if(city)loadStoreOptions(city);
+}
+async function loadStoreOptions(city){
+  const sel=document.getElementById('wcStore');
+  sel.innerHTML='<option value="__other__">其他（手动输入）</option>';
+  if(!city)return;
+  try{
+    const r=await api('GET','/api/stores?city='+encodeURIComponent(city));
+    (r.stores||[]).forEach(s=>{sel.innerHTML+=`<option value="${String(s.name).replace(/"/g,'&quot;')}">${s.name}</option>`});
+  }catch(e){}
+}
+// 城市下拉兜底：GET /api/stores（不带 city 返回全部）→ 城市去重 → 填充 wcCityList 的 option
+async function loadCityList(){
+  const dl=document.getElementById('wcCityList');
+  if(!dl)return;
+  try{
+    const r=await api('GET','/api/stores');
+    const cities=[...new Set((r.stores||[]).map(s=>String(s.city||'').trim()).filter(Boolean))];
+    dl.innerHTML=cities.map(c=>`<option value="${String(c).replace(/"/g,'&quot;')}">`).join('');
+  }catch(e){}
+}
+function onWcStoreChange(){const v=document.getElementById('wcStore').value;document.getElementById('wcStoreCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('wcStoreCustom').focus()}
+function onWcSourceChange(){const v=document.getElementById('wcSource').value;document.getElementById('wcSourceCustom').style.display=v==='__other__'?'block':'none';if(v==='__other__')document.getElementById('wcSourceCustom').focus()}
+async function saveWO(){
+  const custPhone=document.getElementById('wcPhone').value.trim();
+  const custCity=document.getElementById('wcCity').value.trim();
+  const custProduct=document.getElementById('wcProduct').value.trim();
+  if(!custPhone){alert('请填写客户电话');return}
+  if(!custProduct){alert('请填写意向品种');return}
+  const storeSel=document.getElementById('wcStore');
+  let store=storeSel.value==='__other__'?document.getElementById('wcStoreCustom').value.trim():storeSel.value;
+  const srcSel=document.getElementById('wcSource');
+  let custSource=srcSel.value==='__other__'?document.getElementById('wcSourceCustom').value.trim():srcSel.value;
+  let custNote=document.getElementById('wcNote').value.trim();
+  if(custNote===WO_NOTE_TEMPLATE)custNote=''; // 未在模板冒号后填写任何内容 → 不把模板原文落库
+  try{
+    await api('POST','/api/orders',{custPhone,custCity,custProduct,store,custNote,custSource});
+    closeM('woModal');
+    loadWorkOrders();
+  }catch(e){alert('保存失败')}
+}
+
+// 销售：一键预约到店（复制六要素 → 提示 → report → 刷新移入已预约）
+async function reportWO(oid){
+  try{
+    const r=await api('GET','/api/orders');
+    const o=r.orders.find(x=>x.id===oid);
+    if(!o){alert('工单不存在');return}
+    const bjDate=new Date(Date.now()+8*3600e3).toISOString().slice(0,10); // 北京时间当日
+    const text='【日期】：'+bjDate+'\n【城市】：'+(o.custCity||'-')+'\n【品种】：'+(o.custProduct||'-')+'\n【电话】：'+(o.custPhone||'-')+'\n【卖场】：'+(o.store||o.storeAddress||'-')+'\n【备注】：'+(o.custNote||'-');
+    await navigator.clipboard.writeText(text);
+    // 已预约到店（appointed）：仅复制六要素供重复发微信，不再调 report（后端仅 pending 可流转，避免 400 报单失败）
+    if(deriveStatus(o)==='pending')await api('POST','/api/orders/'+oid+'/report',{});
+    alert('工单信息已复制，去微信粘贴报单吧');
+    loadWorkOrders();
+  }catch(e){alert('报单失败')}
+}
+
+// 财务：未到店（单向不回退）
+async function noshowWO(oid){
+  if(!confirm('确认该客户未到店？标记后若客户后续到店，可在未到店工单中补录为已到店。'))return;
+  try{await api('PUT','/api/orders/'+oid+'/noshow',{});loadWorkOrders()}catch(e){alert('操作失败')}
+}
+
+// 财务：已到店弹窗（活体/用品/利润 均可手填非必填）
+async function openArrive(oid){
+  try{
+    const r=await api('GET','/api/orders');
+    const o=r.orders.find(x=>x.id===oid);
+    if(!o)return;
+    document.getElementById('arrOid').value=oid;
+    document.getElementById('arrName').textContent=o.custPhone||'-';
+    document.getElementById('arrLive').value='';document.getElementById('arrSupply').value='';document.getElementById('arrProfit').value='';
+    document.getElementById('arriveModal').classList.add('show');
+  }catch(e){}
+}
+async function saveArrive(){
+  const oid=document.getElementById('arrOid').value;
+  const toNum=v=>{const t=String(v).trim();if(t==='')return null;const n=Number(t);return Number.isFinite(n)?n:null};
+  const amountLive=toNum(document.getElementById('arrLive').value);
+  const amountSupply=toNum(document.getElementById('arrSupply').value);
+  const amountProfit=toNum(document.getElementById('arrProfit').value);
+  try{
+    const res=await api('PUT','/api/orders/'+oid+'/visit',{amountLive,amountSupply,amountProfit});
+    if(res&&res.error){alert(res.error);return}
+    closeM('arriveModal');
+    loadWorkOrders();
+  }catch(e){alert('操作失败')}
+}
+
+// 财务收款确认：确认已收款
+async function collectWO(oid){
+  if(!confirm('确认该工单已完结？'))return;
+  try{await api('PUT','/api/orders/'+oid+'/collect',{});loadWorkOrders()}catch(e){alert('操作失败')}
+}
+
+// 财务收款确认：改价（失焦自动保存）
+async function savePrice(input){
+  const oid=input.dataset.id,field=input.dataset.field;
+  const t=input.value.trim();
+  const v=t===''?null:(Number.isFinite(Number(t))?Number(t):null);
+  try{
+    const body={};body[field]=v;
+    const res=await api('PUT','/api/orders/'+oid+'/price',body);
+    if(res&&res.error){alert(res.error);return}
+  }catch(e){alert('改价失败')}
+}
+
+// ====== ★ 增量：卖场管理（page-stores，管理员）======
+async function loadStores(){
+  if(me.role!=='admin')return;
+  try{
+    const r=await api('GET','/api/stores');
+    const stores=(r.stores||[]).sort((a,b)=>String(a.city||'').localeCompare(String(b.city||''),'zh-CN')||String(a.name||'').localeCompare(String(b.name||''),'zh-CN'));
+    document.getElementById('storesTbl').innerHTML=stores.length?stores.map(s=>`<tr><td>${s.city}</td><td>${s.name}</td><td><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="openStoreEdit('${s.id}')">编辑</button><button class="btn btn-sm btn-danger" onclick="delStore('${s.id}')">删除</button></div></td></tr>`).join(''):'<tr><td colspan="3" class="empty">暂无卖场，可点击「导入初始卖场」</td></tr>';
+    document.getElementById('storesCount').textContent=`共 ${stores.length} 个卖场`;
+  }catch(e){}
+}
+function openStoreCreate(){document.getElementById('storeModalTitle').textContent='新增卖场';document.getElementById('editSid').value='';document.getElementById('sCity').value='';document.getElementById('sName').value='';document.getElementById('storeModal').classList.add('show')}
+async function openStoreEdit(id){
+  try{
+    const r=await api('GET','/api/stores');
+    const s=(r.stores||[]).find(x=>x.id===id);
+    if(!s)return;
+    document.getElementById('storeModalTitle').textContent='编辑卖场';
+    document.getElementById('editSid').value=id;
+    document.getElementById('sCity').value=s.city||'';
+    document.getElementById('sName').value=s.name||'';
+    document.getElementById('storeModal').classList.add('show');
+  }catch(e){}
+}
+async function saveStore(){
+  const id=document.getElementById('editSid').value;
+  const city=document.getElementById('sCity').value.trim(),name=document.getElementById('sName').value.trim();
+  if(!city||!name){alert('请填写城市和名称');return}
+  try{
+    if(id)await api('PUT','/api/stores/'+id,{city,name});
+    else await api('POST','/api/stores',{city,name});
+    closeM('storeModal');loadStores();
+  }catch(e){alert('保存失败')}
+}
+async function delStore(id){
+  if(!confirm('确定删除该卖场？'))return;
+  try{await api('DELETE','/api/stores/'+id);loadStores()}catch(e){alert('删除失败')}
+}
+async function seedStores(){
+  if(!confirm('将按 data/stores.json 导入初始卖场（城市+名称去重跳过），确定？'))return;
+  try{
+    const r=await api('POST','/api/stores/seed',{});
+    alert('导入完成：新增 '+r.added+' 个，跳过 '+r.skipped+' 个');
+    loadStores();
+  }catch(e){alert('导入失败')}
 }
 
 // Load data
 async function loadDashboard(period){
-  if(period)dashPeriod=period;if(me.role!=='admin')return;
+  if(period)dashPeriod=period;if(me.role!=='admin'&&me.role!=='finance_collect')return;
   try{const r=await api('GET','/api/stats'),s=r.stats,key={today:'today',week:'week',month:'month'}[dashPeriod]||'today',d=s[key];
   document.getElementById('statGrid').innerHTML=`
-    <div class="stat-card c1"><div class="stat-label">新增订单</div><div class="stat-value">${d.total}</div><div class="stat-sub">累计 ${s.all.total} 条</div></div>
+    <div class="stat-card c1"><div class="stat-label">新增工单</div><div class="stat-value">${d.total}</div><div class="stat-sub">累计 ${s.all.total} 条</div></div>
     <div class="stat-card c2"><div class="stat-label">到店客户</div><div class="stat-value">${d.visited}</div><div class="stat-sub">到店率 ${d.total?Math.round(d.visited/d.total*100):0}%</div></div>
-    <div class="stat-card c3"><div class="stat-label">成交订单</div><div class="stat-value">${d.closed}</div><div class="stat-sub">成交率 ${d.visited?Math.round(d.closed/d.visited*100):0}%</div></div>
+    <div class="stat-card c3"><div class="stat-label">成交工单</div><div class="stat-value">${d.closed}</div><div class="stat-sub">成交率 ${d.visited?Math.round(d.closed/d.visited*100):0}%</div></div>
     <div class="stat-card c4"><div class="stat-label">成交金额（活体口径）</div><div class="stat-value">${fm(d.liveRevenue||0)}</div><div class="stat-sub">客单价 ${d.closed?fm((d.liveRevenue||0)/d.closed):'-'} · 含用品合计 ${fm(d.revenue||0)}</div></div>`;
   document.getElementById('amtStatGrid').innerHTML=`
     <div class="stat-card"><div class="stat-label">活体售卖</div><div class="stat-value" style="color:var(--accent)">${fm(d.liveRevenue||0)}</div></div>
     <div class="stat-card"><div class="stat-label">用品金额</div><div class="stat-value" style="color:var(--green)">${fm(d.supplyRevenue||0)}</div></div>`;
   const maxT=Math.max(...r.trend.map(x=>x.orders),1);
   // 变更 3：趋势 tooltip 的营收统一取活体口径（后端 trend.revenue 已改为 dealLiveAmount 汇总）
-  document.getElementById('trendChart').innerHTML=r.trend.map(x=>`<div class="bar-item" title="${x.label} 订单${x.orders} · 到店${x.visited} · 成交${x.closed} · 活体营收${fm(x.revenue||0)}"><div class="bar-val">${x.orders}</div><div class="bar" style="height:${Math.max(x.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${x.label}</div></div>`).join('');
+  document.getElementById('trendChart').innerHTML=r.trend.map(x=>`<div class="bar-item" title="${x.label} 工单${x.orders} · 到店${x.visited} · 成交${x.closed} · 活体营收${fm(x.revenue||0)}"><div class="bar-val">${x.orders}</div><div class="bar" style="height:${Math.max(x.orders/maxT*100,3)}px;background:var(--accent)"></div><div class="bar-label">${x.label}</div></div>`).join('');
   const sc={'新建':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'跟进中':Math.max(d.total-d.visited-d.notVisited-d.closed-d.notClosed,0),'已到店':d.visited-d.closed-d.notClosed,'未到店':d.notVisited,'已成交':d.closed,'未成交':d.notClosed};
   const scM=Math.max(...Object.values(sc),1);const cc={'新建':'#3b82f6','跟进中':'#f59e0b','已到店':'#22c55e','未到店':'#ef4444','已成交':'#a855f7','未成交':'#ef4444'};
   document.getElementById('statusChart').innerHTML=Object.entries(sc).map(([k,v])=>`<div class="bar-item"><div class="bar-val">${v}</div><div class="bar" style="height:${Math.max(v/scM*100,3)}px;background:${cc[k]}"></div><div class="bar-label">${k}</div></div>`).join('');
@@ -672,7 +988,7 @@ async function loadCityMap(type){
     // 数据源：地图/城市榜走 cityStats，今日战报 + 销售榜走 mapStats（北京时区口径，后端统一算好）
     const r=await api('GET','/api/cityStats');
     const cities=r.cities||[];
-    const key=mapType,titleN={orders:'订单量',visited:'到店数',closed:'成交数'}[key]||'订单量';
+    const key=mapType,titleN={orders:'工单量',visited:'到店数',closed:'成交数'}[key]||'工单量';
     const maxV=Math.max(...cities.map(c=>c[key]||0),1);
     const dom=document.getElementById('mapChart');
     if(!mapChart&&dom)mapChart=echarts.init(dom,null,{renderer:'canvas'});
@@ -699,17 +1015,16 @@ async function loadCityMap(type){
         },true);
       }
     }
-    // 右上：城市 TOP（订单量）；右下：成交 TOP5
+    // 左下：城市 TOP（订单量）；隐藏容器：成交 TOP5
     cmRank('cmCityTop',cities.slice(0,5).map(c=>({name:c.city,orders:c.orders})),'orders',false);
     cmRank('cmClosedTop',cities.filter(c=>c.closed>0).sort((a,b)=>b.closed-a.closed).slice(0,5).map(c=>({name:c.city,closed:c.closed})),'closed',true);
-    document.getElementById('cmCityCount').textContent=cities.length;
-    document.getElementById('cmTotalOrders').textContent=cities.reduce((s,c)=>s+(c.orders||0),0);
 
-    // 左上/左下：今日战报 + 销售 TOP（按订单数），失败不影响地图本体
+    // 左上/右下：今日战报 + 销售 TOP（按订单数），失败不影响地图本体
     try{
       const m=await api('GET','/api/mapStats?limit=5');
       document.getElementById('cmTodayVisited').textContent=m.todayVisited||0;
       document.getElementById('cmTodayClosed').textContent=m.todayClosed||0;
+      document.getElementById('cmTodayNew').textContent=m.todayNew||0;
       cmRank('cmSalesTop',(m.salesTop||[]).slice(0,5).map(s=>({name:s.name||'未知',total:s.total||0})),'total',false);
     }catch(e){cmRank('cmSalesTop',[],'total',false)}
 
@@ -722,7 +1037,7 @@ async function loadOrders(){
   try{const r=await api('GET','/api/orders');let orders=r.orders;
   const f=document.getElementById('filterStatus').value,s=document.getElementById('searchOrder').value.toLowerCase();
   if(f!=='all')orders=orders.filter(o=>{if(f==='new')return o.visitStatus===null&&o.dealStatus===null&&o.followCount===0;if(f==='follow')return o.followCount>0&&o.visitStatus===null&&o.dealStatus===null;if(f==='visited')return o.visitStatus==='visited'&&o.dealStatus===null;if(f==='not_visited')return o.visitStatus==='not_visited';if(f==='closed')return o.dealStatus==='closed';if(f==='not_closed')return o.dealStatus==='not_closed';return true});
-  if(s)orders=orders.filter(o=>o.orderNo.toLowerCase().includes(s)||o.custName.toLowerCase().includes(s)||o.custPhone.includes(s));
+  if(s)orders=orders.filter(o=>String(o.workOrderNo||o.orderNo||'').toLowerCase().includes(s)||(o.custName||'').toLowerCase().includes(s)||String(o.custPhone||'').includes(s));
   const sa=me.role==='admin'||me.role==='sales';
   document.getElementById('ordersTbl').innerHTML=orders.length?orders.map(o=>{let act='';
     if(o.visitStatus===null&&o.dealStatus===null){act+=`<button class="btn btn-sm btn-outline" onclick="reportOrder('${o.id}')">报单</button>`;
@@ -732,13 +1047,13 @@ async function loadOrders(){
     if(sa&&o.dealStatus===null)act+=`<button class="btn btn-sm btn-outline" onclick="openOrderCreate('${o.id}')">编辑</button>`;
     act+=`<button class="btn btn-sm btn-outline" onclick="copyOrderInfo('${o.id}')">复制</button>`; // 变更 2：复制入口下沉到订单行
     const vb=o.visitStatus==='visited'?'<span class="badge b-visited">已到店</span>':o.visitStatus==='not_visited'?'<span class="badge b-nvisit">未到店</span>':o.visitStatus==='pending_visit'?'<span class="badge b-follow">即将到店</span>':'<span class="badge b-pending">待确认</span>';
-    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td>${o.custProduct||'-'}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td>${vb}</td><td>${o.dealStatus==='closed'?'<span class="badge b-closed">已成交</span>':o.dealStatus==='not_closed'?'<span class="badge b-nclosed">未成交</span>':'<span class="badge b-pending">待确认</span>'}</td><td>${o.dealStatus==='closed'?'<span class="amt">'+fm(o.dealAmount)+'</span>':'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="12" class="empty">暂无订单数据</td></tr>';
+    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.workOrderNo||o.orderNo}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td>${o.custProduct||'-'}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td>${vb}</td><td>${o.dealStatus==='closed'?'<span class="badge b-closed">已成交</span>':o.dealStatus==='not_closed'?'<span class="badge b-nclosed">未成交</span>':'<span class="badge b-pending">待确认</span>'}</td><td>${o.dealStatus==='closed'?'<span class="amt">'+fm(o.dealAmount)+'</span>':'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="11" class="empty">暂无工单数据</td></tr>';
   document.getElementById('ordersCount').textContent=`共 ${orders.length} 条`;}catch(e){}
 }
 
 async function loadSalesFollow(){
   try{const r=await api('GET','/api/orders');const orders=r.orders.filter(o=>o.visitStatus===null&&o.dealStatus===null);
-  document.getElementById('salesFollowTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td style="font-size:11px">${fmt(o.createdAt)}</td><td>${o.followCount||0}次</td><td style="font-size:11px">${o.lastFollowAt?fmt(o.lastFollowAt):'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openFollow('${o.id}')">跟进</button></td></tr>`).join(''):'<tr><td colspan="9" class="empty">暂无待跟进订单</td></tr>';
+  document.getElementById('salesFollowTbl').innerHTML=orders.length?orders.map(o=>`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.workOrderNo||o.orderNo}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${o.custSource||'-'}</td><td style="font-size:11px">${fmt(o.createdAt)}</td><td>${o.followCount||0}次</td><td style="font-size:11px">${o.lastFollowAt?fmt(o.lastFollowAt):'-'}</td><td><button class="btn btn-sm btn-primary" onclick="openFollow('${o.id}')">跟进</button></td></tr>`).join(''):'<tr><td colspan="8" class="empty">暂无待跟进工单</td></tr>';
   document.getElementById('salesFollowCount').textContent=`共 ${orders.length} 条待跟进`;}catch(e){}
 }
 
@@ -763,7 +1078,7 @@ async function loadFinanceFollow(){
     const act=(done?'':`<button class="btn btn-sm btn-success" onclick="openDeal('${o.id}')">成交</button>`)
       +`<button class="btn btn-sm btn-outline" onclick="copyOrderInfo('${o.id}')">复制</button>`;
     const amt=o.dealStatus==='closed'?`<span class="amt" title="活体 ${fm(o.dealLiveAmount||0)} / 用品 ${fm(o.dealSupplyAmount||0)} / 利润 ${fm(o.dealProfit||0)}">${fm(o.dealAmount)}</span>`:'-';
-    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td>${o.custName}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${db(o.dealStatus)}</td><td>${amt}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="12" class="empty">暂无订单</td></tr>';
+    return`<tr><td style="font-family:monospace;color:var(--accent);font-size:11px">${o.workOrderNo||o.orderNo}</td><td style="font-size:11px">${(o.createdAt||'').slice(0,10)}</td><td style="font-size:11px">${o.custPhone}</td><td>${o.custCity||'-'}</td><td>${vb(o.visitStatus)}</td><td>${db(o.dealStatus)}</td><td>${amt}</td><td>${o.salesPersonName||'-'}</td><td style="font-size:11px">${o.storeAddress||'-'}</td><td style="font-size:11px">${o.custNote||'-'}</td><td><div class="d-flex">${act}</div></td></tr>`}).join(''):'<tr><td colspan="11" class="empty">暂无工单</td></tr>';
   document.getElementById('financeCount').textContent=`共 ${orders.length} 条 · 待确认 ${pending} 条 · 已成交 ${closedN} 条`;}catch(e){}
 }
 
@@ -780,6 +1095,16 @@ function downloadFinanceOrders(){
   triggerDownload('/api/export/orders.xlsx'+(qs.length?'?'+qs.join('&'):''));
 }
 
+// ★ 增量：财务收款确认 按日期范围导出 Excel（后端按角色过滤为 deal|collected，df/dt 为日期别名参数）
+function exportCollectOrders(){
+  const df=document.getElementById('wcDateFrom')?document.getElementById('wcDateFrom').value:'';
+  const dt=document.getElementById('wcDateTo')?document.getElementById('wcDateTo').value:'';
+  const qs=[];
+  if(df)qs.push('df='+encodeURIComponent(df));
+  if(dt)qs.push('dt='+encodeURIComponent(dt));
+  triggerDownload('/api/export/orders.xlsx'+(qs.length?'?'+qs.join('&'):''));
+}
+
 /** 触发浏览器下载（同源导航自动带 session cookie）。 */
 function triggerDownload(url){
   const a=document.createElement('a');
@@ -789,10 +1114,10 @@ function triggerDownload(url){
 }
 
 // Users
-async function loadUsers(){if(me.role!=='admin')return;try{const r=await api('GET','/api/users');document.getElementById('usersTbl').innerHTML=r.users.map(u=>`<tr><td>${u.username}</td><td>${u.name}</td><td><span class="role-tag ${u.role==='admin'?'role-admin':u.role==='sales'?'role-sales':'role-finance'}">${u.role==='admin'?'管理员':u.role==='sales'?'销售':'财务'}</span></td><td style="font-size:11px">${u.createdAt?fmt(u.createdAt):'-'}</td><td><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="openUserEdit('${u.id}')">编辑</button>${u.role==='admin'?'<span style="font-size:11px;color:var(--text3)">不可删除</span>':'<button class="btn btn-sm btn-danger" onclick="delUser(\''+u.id+'\',\''+u.username+'\')">删除</button>'}</div></td></tr>`).join('')}catch(e){}}
-function openUserCreate(){document.getElementById('userModalTitle').textContent='新建销售账号';document.getElementById('editUid').value='';document.getElementById('uUser').value='';document.getElementById('uName').value='';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=false;document.getElementById('uPwLabel').textContent='*';document.getElementById('userModal').classList.add('show')}
-async function openUserEdit(id){try{const r=await api('GET','/api/users');const u=r.users.find(x=>x.id===id);if(!u)return;document.getElementById('userModalTitle').textContent='编辑账号';document.getElementById('editUid').value=id;document.getElementById('uUser').value=u.username;document.getElementById('uUser').disabled=(u.role==='admin');document.getElementById('uName').value=u.name;document.getElementById('uPass').value='';document.getElementById('uPwLabel').textContent='(留空不修改)';document.getElementById('userModal').classList.add('show')}catch(e){}}
-async function saveUser(){const id=document.getElementById('editUid').value,username=document.getElementById('uUser').value.trim(),name=document.getElementById('uName').value.trim(),password=document.getElementById('uPass').value.trim();if(!id&&(!username||!password||!name)){alert('请填写完整信息');return}try{if(id)await api('PUT','/api/users/'+id,{username, name, password:password||undefined});else await api('POST','/api/users',{username,password,name});closeM('userModal');loadUsers()}catch(e){alert('操作失败')}}
+async function loadUsers(){if(me.role!=='admin')return;try{const r=await api('GET','/api/users');document.getElementById('usersTbl').innerHTML=r.users.map(u=>`<tr><td>${u.username}</td><td>${u.name}</td><td><span class="role-tag ${u.role==='admin'?'role-admin':u.role==='sales'?'role-sales':'role-finance'}">${ROLE_CN[u.role]||u.role}</span></td><td style="font-size:11px">${u.createdAt?fmt(u.createdAt):'-'}</td><td><div class="d-flex"><button class="btn btn-sm btn-outline" onclick="openUserEdit('${u.id}')">编辑</button>${u.role==='admin'?'<span style="font-size:11px;color:var(--text3)">不可删除</span>':'<button class="btn btn-sm btn-danger" onclick="delUser(\''+u.id+'\',\''+u.username+'\')">删除</button>'}</div></td></tr>`).join('')}catch(e){}}
+function openUserCreate(){document.getElementById('userModalTitle').textContent='新建销售账号';document.getElementById('editUid').value='';document.getElementById('uUser').value='';document.getElementById('uName').value='';document.getElementById('uRole').value='sales';document.getElementById('uPass').value='';document.getElementById('uUser').disabled=false;document.getElementById('uPwLabel').textContent='*';document.getElementById('userModal').classList.add('show')}
+async function openUserEdit(id){try{const r=await api('GET','/api/users');const u=r.users.find(x=>x.id===id);if(!u)return;document.getElementById('userModalTitle').textContent='编辑账号';document.getElementById('editUid').value=id;document.getElementById('uUser').value=u.username;document.getElementById('uUser').disabled=(u.role==='admin');document.getElementById('uName').value=u.name;document.getElementById('uRole').value=u.role||'sales';document.getElementById('uPass').value='';document.getElementById('uPwLabel').textContent='(留空不修改)';document.getElementById('userModal').classList.add('show')}catch(e){}}
+async function saveUser(){const id=document.getElementById('editUid').value,username=document.getElementById('uUser').value.trim(),name=document.getElementById('uName').value.trim(),password=document.getElementById('uPass').value.trim();if(!id&&(!username||!password||!name)){alert('请填写完整信息');return}try{if(id)await api('PUT','/api/users/'+id,{username, name, password:password||undefined});else await api('POST','/api/users',{username,password,name,role:document.getElementById('uRole').value});closeM('userModal');loadUsers()}catch(e){alert('操作失败')}}
 async function delUser(id,name){if(!confirm(`确定删除"${name}"？`))return;try{await api('DELETE','/api/users/'+id);loadUsers()}catch(e){alert('删除失败')}}
 
 // ====== 数据管理（导出 / 模板 / 导入）======
@@ -847,7 +1172,7 @@ function renderImportResult(ok,data){
     const u=data.users||{added:0,skipped:0,failed:0},o=data.orders||{added:0,skipped:0,failed:0};
     let h=`<div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
       <div class="stat-card"><div class="stat-label">账号</div><div class="stat-value" style="font-size:20px;color:var(--green)">新增 ${u.added}</div><div class="stat-sub">跳过重复 ${u.skipped} · 失败 ${u.failed}</div></div>
-      <div class="stat-card"><div class="stat-label">订单</div><div class="stat-value" style="font-size:20px;color:var(--green)">新增 ${o.added}</div><div class="stat-sub">跳过重复 ${o.skipped} · 失败 ${o.failed}</div></div>
+      <div class="stat-card"><div class="stat-label">工单</div><div class="stat-value" style="font-size:20px;color:var(--green)">新增 ${o.added}</div><div class="stat-sub">跳过重复 ${o.skipped} · 失败 ${o.failed}</div></div>
     </div>`;
     if(data.backupFile)h+=`<div style="font-size:11px;color:var(--text2);margin-bottom:10px">已自动备份原始数据至 <code style="color:var(--accent)">${esc(data.backupFile)}</code></div>`;
     if(data.defaultPasswordUsers&&data.defaultPasswordUsers.length){
@@ -875,9 +1200,6 @@ document.addEventListener('click',e=>{
   if(e.target.classList.contains('tab')&&e.target.closest('#dashTabs')){document.querySelectorAll('#dashTabs .tab').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');loadDashboard(e.target.dataset.period)}
   if(e.target.dataset.maptype){document.querySelectorAll('[data-maptype]').forEach(t=>t.classList.remove('active'));e.target.classList.add('active');loadCityMap(e.target.dataset.maptype)}
 });
-
-// Gender
-function onGenderChange(){document.getElementById('ocName').placeholder=document.getElementById('ocGender').value}
 
 // Password change
 async function changePw(){const oldPw=prompt('请输入旧密码');if(!oldPw)return;const newPw=prompt('请输入新密码');if(!newPw)return;try{await api('PUT','/api/auth/password',{oldPassword:oldPw,newPassword:newPw});alert('密码修改成功')}catch(e){alert('修改失败，请检查旧密码')}}

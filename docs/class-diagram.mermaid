@@ -1,115 +1,78 @@
-%% 销售订单系统 — 增量变更 模块/类图
-%% excel.js（新增）+ server.js 路由层 + 既有存储抽象层
+%% 销售订单系统 — 「订单→工单」增量 类图
+%% ★ 为本增量新增成员；其余为既有代码（保留仅列出与本增量相关部分）
 
 classDiagram
-    class ExcelModule {
-        <<module: excel.js>>
-        +ORDER_COLUMNS: ColumnDef[]
-        +USER_COLUMNS: ColumnDef[]
-        +VISIT_STATUS_CN: Object
-        +DEAL_STATUS_CN: Object
-        +ROLE_CN: Object
-        +MAX_IMPORT_ROWS: number
-        +fmtBJ(iso) string
-        +parseBJ(text) string
-        +toCN(map, value) string
-        +fromCN(map, text) string
-        +buildOrdersWorkbook(orders) Promise~Buffer~
-        +buildTemplateWorkbook() Promise~Buffer~
-        +parseImportWorkbook(buffer) Promise~ParseResult~
-    }
-
-    class ConfigModule {
-        <<module: config.js>>
-        +DEFAULT_IMPORT_PASSWORD: string
-    }
-
-    class ColumnDef {
-        +header: string
-        +field: string
-        +type: string
-        +numFmt: string
-        +width: number
-        +required: boolean
-        +toCell(order) any
-        +fromCell(raw) any
-    }
-
-    class ParseResult {
-        +users: UserRow[]
-        +orders: OrderRow[]
-        +errors: RowIssue[]
-        +warnings: RowIssue[]
-    }
-
-    class RowIssue {
-        +sheet: string
-        +row: number
-        +column: string
-        +message: string
-    }
-
-    class UserRow {
-        +username: string
-        +name: string
-        +role: string
-        +password: string
-        +_row: number
-    }
-
-    class OrderRow {
+    class Order {
+        +id: string
         +orderNo: string
+        +workOrderNo: string  ★
+        +status: 'pending'|'appointed'|'deal'|'collected'|'noshow'  ★
         +custName: string
         +custPhone: string
         +custCity: string
-        +custSource: string
         +custProduct: string
-        +storeAddress: string
         +custNote: string
-        +salesPersonName: string
-        +visitStatus: string
-        +visitAt: string
-        +followCount: number
-        +dealStatus: string
+        +store: string  ★
+        +amountLive: number|null  ★
+        +amountSupply: number|null  ★
+        +amountProfit: number|null  ★
+        +collected: boolean  ★
+        +collectedAt: string|null  ★
+        +visitStatus: string|null
+        +dealStatus: string|null
         +dealLiveAmount: number
         +dealSupplyAmount: number
-        +dealAmount: number
         +dealProfit: number
-        +dealAt: string
+        +dealAmount: number
+        +dealAt: string|null
         +createdAt: string
-        +_row: number
     }
-
-    class ServerRoutes {
-        <<module: server.js>>
-        +readAllPaged(name) Promise~Array~
-        +bjDateKey(iso) string
-        +postDeal(req, res)
-        +getStats(req, res)
-        +getMapStats(req, res)
-        +getExportOrdersXlsx(req, res)
-        +getImportTemplateXlsx(req, res)
-        +postImportXlsx(req, res)
-        +backupBeforeImport() Promise~string~
+    class Store {
+        +id: string
+        +city: string  ★标准化短名
+        +name: string
     }
-
+    class User {
+        +id: string
+        +username: string
+        +password: string
+        +role: 'admin'|'sales'|'finance'|'finance_collect'
+        +name: string
+        +phone: string
+    }
+    class ServerModule {
+        <<server.js>>
+        +DATA_COLLECTIONS: string[]
+        +nextWorkOrderNo(orders, bjDateKey) string  ★
+        +deriveStatus(order) string  ★ 权威推导规则(单一事实来源)
+        +normalizeCityName(raw) string  ★
+        +seedCloudDefaultStores(db) Promise~void~  ★
+        +putVisit(req,res) ★
+        +putNoShow(req,res) ★
+        +putCollect(req,res) ★
+        +putPrice(req,res) ★
+        +storesCrud(req,res) ★
+    }
     class StorageLayer {
         <<existing: server.js>>
         +readAll(name) Promise~Array~
+        +readAllPaged(name) Promise~Array~
         +addItem(name, item) Promise~string~
         +updateItem(name, id, updates) Promise~void~
         +removeItem(name, id) Promise~void~
         +findById(name, id) Promise~object~
     }
-
-    ExcelModule "1" o-- "19" ColumnDef : ORDER_COLUMNS
-    ExcelModule "1" o-- "4"  ColumnDef : USER_COLUMNS
-    ExcelModule ..> ParseResult : returns
-    ParseResult "1" *-- "0..*" UserRow
-    ParseResult "1" *-- "0..*" OrderRow
-    ParseResult "1" *-- "0..*" RowIssue
-    ExcelModule ..> ConfigModule : 引入 DEFAULT_IMPORT_PASSWORD
-    ServerRoutes ..> ExcelModule : uses
-    ServerRoutes ..> ConfigModule : 读 DEFAULT_IMPORT_PASSWORD
-    ServerRoutes --|> StorageLayer : extends with readAllPaged
-    ServerRoutes ..> StorageLayer : uses
+    class WorkbenchUI {
+        <<index.html>>
+        +statusOf(order) string ★ 与 server.deriveStatus 同一份规则
+        +renderWorkOrders() ★
+        +appointWorkOrder(oid) ★ 一键预约+复制六要素
+        +openArriveModal(oid) ★
+        +confirmCollect(oid) ★
+        +savePrice(oid) ★ 失焦自动保存
+        +renderStores() ★
+    }
+    ServerModule ..> StorageLayer : uses
+    ServerModule ..> Order : 读写
+    ServerModule ..> Store : 读写
+    WorkbenchUI ..> ServerModule : fetch
